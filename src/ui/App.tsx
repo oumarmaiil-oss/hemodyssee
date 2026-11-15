@@ -38,6 +38,7 @@ export default function App() {
   const [zone, setZone] = useState<ZoneId | null>(null);
   const [actives, setActives] = useState<PathoActive[]>([]);
   const [focusPatho, setFocusPatho] = useState<string | null>(null);
+  const [lectLoc, setLectLoc] = useState(false);
   const [traitement, setTraitement] = useState<Traitement>({});
   const [vueEvo, setVueEvo] = useState<VueEvolution | null>(null);
   const [sonOn, setSonOn] = useState(false);
@@ -188,12 +189,13 @@ export default function App() {
       {/* Corps */}
       <main className="flex-1 min-h-0 max-w-[1600px] w-full mx-auto p-2 sm:p-4 grid gap-2 lg:gap-3 grid-rows-[auto_minmax(0,1fr)] grid-cols-[minmax(0,1fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col gap-2 lg:gap-3 min-w-0">
-          <div className={`${tour !== null || seq !== null ? 'h-[50dvh]' : 'h-[34dvh]'} transition-[height] duration-300 min-h-[220px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
+          <div className={`${tour !== null || seq !== null || lectLoc ? 'h-[50dvh]' : 'h-[34dvh]'} transition-[height] duration-300 min-h-[220px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
             <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} legende={legende} onVue={setVue}
               onVoyage3D={() => { setSeq(null); setVue('3d'); setTourPause(false); setTour(0); }}
               tourActif={tour !== null}
               lecture={tour !== null ? { titre: 'Voyage du sang', texte: TOUR[tour].etape, detail: DETAILS_VISITE[TOUR[tour].z]?.[niveau === 1 ? 0 : 1], index: tour, total: TOUR.length, pause: tourPause }
                 : seq !== null ? { titre: 'Effet du traitement', texte: PHASES[seq].nom, detail: `PA ${etatScene.pas}/${etatScene.pad} · LDL ${etatScene.ldl.toFixed(1)} · risque d'AVC ×${etatScene.risques.avc.toFixed(1)}`, index: seq, total: PHASES.length, pause: seqPause } : null}
+              onLectureLocale={setLectLoc}
               onLecture={(a) => {
                 if (tour !== null) {
                   if (a === 'pause') setTourPause((p) => !p);

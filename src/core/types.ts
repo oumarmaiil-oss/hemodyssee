@@ -78,5 +78,6 @@ export interface Etat {
   alertes: Alerte[];
   terrain: Terrain; // terrain effectif (après traitement)
   thrombusOG: boolean; // caillot dans l'auricule gauche (FA non anticoagulée)
+  embolieCarotide: boolean; // plaque carotidienne serrée non protégée : un fragment peut partir vers le cerveau
   oedemes: number; // œdèmes des jambes 0..1 (congestion veineuse ou inhibiteur calcique)
 }

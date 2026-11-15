@@ -17,6 +17,16 @@ const W = 1000, H = 600, CY = 300;
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
+/** Étapes de l'athérosclérose, de l'artère saine au caillot (classification classique de Stary). */
+export const ETAPES_ATHERO = [
+  { titre: 'Artère saine', texte: 'Paroi souple, endothélium lisse : le sang glisse sans obstacle.', detail: 'Trois couches : intima (avec l\'endothélium), média musculaire, adventice.' },
+  { titre: 'Dépôt de LDL (strie lipidique)', texte: 'Le LDL en excès traverse l\'endothélium et s\'accumule dans l\'intima, où il s\'oxyde.', detail: 'Lésion débutante, sans rétrécissement ni symptôme ; elle peut apparaître dès l\'adolescence.' },
+  { titre: 'Cellules spumeuses', texte: 'Des macrophages avalent le LDL oxydé et deviennent des cellules spumeuses : le cœur lipidique se forme.', detail: 'L\'inflammation entretient le processus ; le rétrécissement reste modéré.' },
+  { titre: 'Plaque d\'athérome', texte: 'Une chape fibreuse recouvre le cœur lipidique : la plaque rétrécit l\'artère.', detail: 'Au-delà d\'environ 70 % de rétrécissement, l\'effort manque d\'oxygène : angor, claudication des jambes.' },
+  { titre: 'Rupture et caillot', texte: 'La chape fine se fissure : les plaquettes s\'y collent et un caillot se forme (thrombose).', detail: 'C\'est la cible de l\'aspirine (plaquettes) ; la statine stabilise la plaque.' },
+  { titre: 'Occlusion ou embolie', texte: 'Le caillot bouche l\'artère, ou un fragment se détache et va boucher une artère plus loin.', detail: 'Coronaire → infarctus ; carotide → AVC ; jambe → ischémie aiguë du membre.' },
+] as const;
+
 export interface Vaisseau2D {
   frame(i: Instant, dt: number): void;
   maj(e: Etat): void;
@@ -24,6 +34,8 @@ export interface Vaisseau2D {
   selection(z: ZoneId | null): void;
   setEtiquettes(on: boolean, noms: Partial<Record<ZoneId, string>>): void;
   setSite(s: Site): void;
+  /** Étapes de l'athérosclérose (0 à 5) jouées en démonstration ; null = état du patient. */
+  setEtape(n: number | null): void;
   dispose(): void;
 }
 
@@ -45,6 +57,9 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
   let labels = true;
   let temps = 0;
   let pouls = 0;
+  let etape: number | null = null, tEtape = 0;
+  const STEN_ETAPE = [0, 0.07, 0.32, 0.66, 0.66, 0.66];
+  const plaquettes = Array.from({ length: 26 }, (_, k) => ({ a: (k * 2.39) % 6.28, r: 6 + ((k * 7) % 30) }));
   const N = opt.leger ? 70 : 130;
   const gr = Array.from({ length: N }, () => ({ x: Math.random() * W, y: (Math.random() * 2 - 1), r: 0.7 + Math.random() * 0.5, a: Math.random() * 6 }));
   const ldl = Array.from({ length: 50 }, () => ({ x: Math.random() * W, y: Math.random() * 2 - 1, dans: 0 }));
@@ -60,6 +75,11 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
     const constr = site === 'arteriole' ? clamp(1 / Math.pow(rvs, 1.1), 0.45, 1.1) : 1;
     const media = (site === 'aorte' ? 30 : site === 'arteriole' ? 30 : 22) * (1 + 0.6 * Math.max(0, rvs - 1)) * (1 + 0.4 * rigid);
     const occl = !!t && site === 'coronaire' && (t.occlusion > 0.3 || (t.ischemie > 0.2 && t.plaqueCoro > 0.85));
+    if (etape !== null) {
+      // Démonstration : la plaque grandit d'une étape à l'autre (transition douce sur ~1,2 s).
+      const k = Math.min(1, tEtape / 1.2), cible = STEN_ETAPE[etape], avant = STEN_ETAPE[Math.max(0, etape - 1)];
+      return { sten: lerp(avant, cible, k * k * (3 - 2 * k)), rigid: 0.12, rayon: 92, media: 22, occl: etape === 5, ldl: etape === 0 ? 2 : 4.8, debit: 1 };
+    }
     return { sten, rigid, rayon: base * constr, media, occl, ldl: e?.ldl ?? 2.6, debit: (e?.debit ?? 5) / 5 };
   }
 
@@ -128,7 +148,7 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
 
     // Plaque d'athérome : cœur lipidique jaune et chape fibreuse.
     if (p.sten > 0.04) {
-      const chape = clamp(1 - (p.ldl - 1.8) / 3, 0.25, 1);
+      const chape = etape !== null ? (etape >= 4 ? 0.15 : etape === 3 ? 0.9 : 0.4) : clamp(1 - (p.ldl - 1.8) / 3, 0.25, 1);
       for (const haut of [false, true]) {
         const s = haut ? -1 : 1;
         g.fillStyle = '#f2c94c'; g.beginPath();
@@ -140,7 +160,19 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
         g.stroke();
         // Cellules spumeuses.
         g.fillStyle = 'rgba(255,240,200,.85)';
-        for (let k2 = 0; k2 < 10 * p.sten; k2++) { const x = 400 + ((k2 * 61) % 200); const yb = CY + s * (p.rayon - 8 - ((k2 * 17) % Math.max(6, p.sten * 60))); g.beginPath(); g.arc(x, yb, 5, 0, 7); g.fill(); }
+        const nSp = etape !== null && etape >= 2 ? (haut ? 6 : 14) : 10 * p.sten;
+        for (let k2 = 0; k2 < nSp; k2++) { const x = 400 + ((k2 * 61) % 200); const yb = CY + s * (p.rayon - 8 - ((k2 * 17) % Math.max(6, p.sten * 60))); g.beginPath(); g.arc(x, yb, 5, 0, 7); g.fill(); }
+      }
+    }
+    // Démonstration : fissure de la chape, plaquettes, caillot qui grossit, fragment qui part.
+    if (etape !== null && etape >= 4) {
+      const yB = CY + lumiere(500, p, false);
+      g.fillStyle = '#5a0a10'; g.beginPath(); g.moveTo(488, yB - 2); g.lineTo(512, yB - 2); g.lineTo(503, yB + 26); g.lineTo(497, yB + 26); g.closePath(); g.fill();
+      if (etape === 4) {
+        const grow = Math.min(1, tEtape / 2.5);
+        g.fillStyle = '#9b1622'; g.beginPath(); g.ellipse(500, yB - 4 - 14 * grow, 30 + 30 * grow, 6 + 20 * grow, 0, Math.PI, 0); g.fill();
+        g.fillStyle = 'rgba(245,225,235,.95)';
+        for (const q of plaquettes) { const r = q.r * (0.4 + 0.6 * grow); g.beginPath(); g.ellipse(500 + Math.cos(q.a) * r * 1.8, yB - 8 - Math.abs(Math.sin(q.a)) * r * 0.8, 3.2, 1.8, q.a, 0, 7); g.fill(); }
       }
     }
     // Caillot sur plaque rompue.
@@ -149,6 +181,13 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
       g.fillStyle = 'rgba(255,255,255,.18)'; for (let k2 = 0; k2 < 30; k2++) { g.fillRect(450 + ((k2 * 37) % 100), CY - 20 + ((k2 * 13) % 40), 8, 1.5); }
     }
 
+    if (etape === 5) {
+      const cyc = (tEtape % 3.2) / 3.2;
+      const fx = 560 + cyc * 460, fy = CY + 20 * Math.sin(cyc * 6);
+      g.fillStyle = '#7a0f18'; g.strokeStyle = '#ff8d99'; g.lineWidth = 2;
+      g.beginPath(); g.ellipse(fx, fy, 18, 11, 0.3, 0, 7); g.fill(); g.stroke();
+      if (fx < 930) texte('Fragment → plus loin', fx, fy - 30, 12, '#ffb3bd');
+    }
     // Globules rouges : vitesse inversement proportionnelle à la section (continuité).
     const vBase = 160 * clamp(p.debit, 0.4, 1.6) * (0.45 + 0.9 * pouls);
     for (const c of gr) {
@@ -171,7 +210,8 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
       if (l.dans > 0) { l.dans -= dt; g.fillStyle = 'rgba(255,216,74,.9)'; g.beginPath(); g.arc(l.x, CY + p.rayon - 2 - l.dans * 4, 4, 0, 7); g.fill(); if (l.dans <= 0) { l.x = -10; } continue; }
       l.x += vBase * 0.9 * dt;
       if (l.x > W + 10) { l.x = -10; l.y = Math.random() * 2 - 1; }
-      if (p.ldl > 2.6 && l.x > 420 && l.x < 580 && l.y > 0.6 && Math.random() < 0.02) l.dans = 3;
+      const pen = etape !== null ? (etape >= 1 && etape <= 3 ? 0.08 : 0) : 0.02;
+      if (p.ldl > 2.6 && l.x > 420 && l.x < 580 && l.y > 0.6 && Math.random() < pen) l.dans = 3;
       const hH = lumiere(l.x, p, true), hB = lumiere(l.x, p, false);
       const yc = CY + (l.y >= 0 ? l.y * hB : l.y * hH) * 0.8;
       g.fillStyle = '#ffd84a'; g.beginPath(); g.arc(l.x, yc, 4, 0, 7); g.fill();
@@ -185,22 +225,34 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
       texte(p.rigid > 0.4 ? 'Média durcie (rigide)' : 'Média (muscle)', 120, CY - r0 - p.media / 2 - 6, 12, '#ffd0d6');
       texte('Intima', 90, CY - r0 - 1, 11, '#fff');
       texte('Lumière : le sang circule', 150, CY + 4, 12);
-      if (p.sten > 0.04) texte(p.occl ? 'Caillot : artère bouchée' : 'Plaque d\'athérome', 500, CY + r0 + 52, 13, p.occl ? '#ffb3bd' : '#ffe08a');
-      if (p.ldl > 2.6) texte('LDL qui entre dans la paroi', 760, CY + r0 + 52, 12, '#ffe08a');
+      if (etape !== null) {
+        const nom = ['Endothélium lisse', 'LDL sous l\'endothélium', 'Cellules spumeuses', 'Cœur lipidique + chape fibreuse', 'Fissure → plaquettes → caillot', 'Caillot : artère bouchée'][etape];
+        texte(nom, 500, CY + r0 + 52, 13, etape >= 4 ? '#ffb3bd' : '#ffe08a');
+        if (etape >= 1 && etape <= 3) texte('LDL qui entre dans la paroi', 800, CY + r0 + 52, 12, '#ffe08a');
+      } else {
+        if (p.sten > 0.04) texte(p.occl ? 'Caillot : artère bouchée' : 'Plaque d\'athérome', 500, CY + r0 + 52, 13, p.occl ? '#ffb3bd' : '#ffe08a');
+        if (p.ldl > 2.6) texte('LDL qui entre dans la paroi', 800, CY + r0 + 52, 12, '#ffe08a');
+        const t = etat?.terrain;
+        if (t && site === 'carotide' && t.avc > 0.3 && t.plaqueCarotide < 0.3) texte('Carotide saine : le caillot de cet AVC vient d\'ailleurs (souvent du cœur, en FA)', W / 2, 76, 12, '#a4b1c7');
+        if (etat?.embolieCarotide && site === 'carotide') texte('Plaque serrée : un fragment peut partir vers le cerveau (AVC)', W / 2, 76, 12, '#ffb3bd');
+      }
     }
-    texte(`${SITES.find((s) => s.id === site)!.nom} · rétrécissement ${pct} %`, W / 2, 40, 16, pct >= 70 ? '#fb7185' : pct >= 40 ? '#fbbf24' : '#e9eef8');
-    if (site === 'arteriole') texte(`Artériole ${p.rayon < 62 ? 'resserrée (HTA) : la résistance augmente' : 'normale'}`, W / 2, H - 40, 13, p.rayon < 62 ? '#fbbf24' : '#a4b1c7');
+    const nomSite = etape !== null ? `Étape ${etape + 1}/${ETAPES_ATHERO.length + 1} · ${ETAPES_ATHERO[etape].titre}` : SITES.find((s) => s.id === site)!.nom;
+    texte(`${nomSite} · rétrécissement ${pct} %`, W / 2, 40, 16, pct >= 70 ? '#fb7185' : pct >= 40 ? '#fbbf24' : '#e9eef8');
+    if (etape !== null) { /* le bandeau de lecture explique l'étape */ }
+    else if (site === 'arteriole') texte(`Artériole ${p.rayon < 62 ? 'resserrée (HTA) : la résistance augmente' : 'normale'}`, W / 2, H - 40, 13, p.rayon < 62 ? '#fbbf24' : '#a4b1c7');
     else if (p.rigid > 0.35) texte('Paroi durcie : elle se dilate moins à chaque battement', W / 2, H - 40, 13, '#fbbf24');
-    if (etat) texte(`PA ${etat.pas}/${etat.pad} mmHg · LDL ${etat.ldl.toFixed(1)} mmol/L`, W - 20, H - 40, 12, '#a4b1c7', 'right');
+    if (etat && etape === null) texte(`PA ${etat.pas}/${etat.pad} mmHg · LDL ${etat.ldl.toFixed(1)} mmol/L`, W - 20, H - 40, 12, '#a4b1c7', 'right');
   }
 
   return {
-    frame(i, dt) { temps += dt; dessiner(i, dt); },
+    frame(i, dt) { temps += dt; tEtape += dt; dessiner(i, dt); },
     maj(e) { etat = e; },
     focus() {},
     selection() {},
     setEtiquettes() { labels = true; },
     setSite(s) { site = s; },
+    setEtape(n) { if (n !== etape) { etape = n; tEtape = 0; } },
     dispose() { ro.disconnect(); cv.remove(); },
   };
 }

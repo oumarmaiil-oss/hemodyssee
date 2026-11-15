@@ -52,9 +52,9 @@ const ANCRES: Partial<Record<ZoneId, THREE.Vector3>> = {
   od: P.od, og: P.og, vg: V(0.7, -0.45, 0.05), vd: V(-0.18, -0.3, 0.66),
   valveTri: P.tri, valvePu: P.pu, valveMi: P.mi, valveAo: P.ao, noeudSinusal: P.sa, noeudAV: P.av,
   aorte: V(0.45, 2.0, -0.32), artPulm: V(0.12, 1.45, 0.4), veinesCaves: V(-1.02, 1.85, 0), veinesPulm: V(1.25, 1.02, -0.86),
-  coronaires: V(-0.02, 0.15, 0.95), carotides: V(0.42, 2.45, -0.3),
+  coronaires: V(0.15, -0.35, 0.95), carotides: V(0.42, 2.45, -0.3),
 };
-const DISTANCE: Partial<Record<ZoneId, number>> = { valveTri: 4.6, valvePu: 4.6, valveMi: 4.6, valveAo: 4.6, noeudSinusal: 4.0, noeudAV: 4.2, coronaires: 5.4, carotides: 4.4, aorte: 6.2, artPulm: 5.4, veinesCaves: 6, veinesPulm: 5.4, od: 5.2, og: 5.2, vd: 5.6, vg: 5.8 };
+const DISTANCE: Partial<Record<ZoneId, number>> = { valveTri: 4.6, valvePu: 4.6, valveMi: 4.6, valveAo: 4.6, noeudSinusal: 4.0, noeudAV: 4.2, coronaires: 6.8, carotides: 4.4, aorte: 6.2, artPulm: 5.4, veinesCaves: 6, veinesPulm: 5.4, od: 5.2, og: 5.2, vd: 5.6, vg: 5.8 };
 const INTERNES: ZoneId[] = ['od', 'vd', 'og', 'vg', 'valveTri', 'valvePu', 'valveMi', 'valveAo', 'noeudAV'];
 
 // ── Textures procédurales ──
@@ -159,7 +159,7 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     const ext = mat({ color: coulExt, bumpMap: fibres, bumpScale: 0.6, vertexColors }, z);
     const extDos = mat({ color: 0x7c222b, side: THREE.BackSide, roughness: 0.7, clearcoat: 0.2, bumpMap: fibres, bumpScale: 0.5 }, z);
     const intFace = mat({ color: 0x86262f, roughness: 0.7, clearcoat: 0.2, bumpMap: fibres, bumpScale: 0.5, vertexColors }, z);
-    const intDos = mat({ color: 0xd98f90, side: THREE.BackSide, roughness: 0.32, clearcoat: 0.9, clearcoatRoughness: 0.18, bumpMap: fibres, bumpScale: 0.35, vertexColors }, z);
+    const intDos = mat({ color: 0xd98f90, side: THREE.BackSide, roughness: 0.32, clearcoat: 0.9, clearcoatRoughness: 0.18, bumpMap: fibres, bumpScale: 0.35 }, z);
     for (const m of [ext, extDos, intFace, intDos]) { m.transparent = true; m.depthWrite = true; }
     parois.push(ext, extDos, intFace, intDos);
     const g = new THREE.Group();
@@ -178,14 +178,21 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   vg.group.quaternion.setFromUnitVectors(V(0, -1, 0), P.vgDir);
   let vgBaseExt = new Float32Array(0), vgBaseInt = new Float32Array(0), vgNecExt = new Float32Array(0), vgNecInt = new Float32Array(0);
   const anterieurLocal = V(-0.35, 0, 1).normalize().applyQuaternion(vg.group.quaternion.clone().invert()).setY(0).normalize();
-  let paramsVG = { hvg: -1, dil: -1, isch: -1 };
+  let paramsVG = { hvg: -1, dil: -1, isch: -1, hypo: -1 };
+  // Couleurs de la zone atteinte, exprimées en facteurs de la couleur de base (espace linéaire) :
+  // nécrose = tissu mort gris violacé ; ischémie (angor) = muscle pâle et violacé, encore vivant.
+  const facteurs = (base: number, cible: number) => { const b = new THREE.Color(base), c = new THREE.Color(cible); return [c.r / b.r, c.g / b.g, c.b / b.b]; };
+  const NEC_EXT = facteurs(0x8a1f2b, 0x76668a), NEC_INT = facteurs(0x86262f, 0x463a52);
+  const necCentre = new THREE.Vector3(0.62, -0.75, 0.55);
+  const HYPO_EXT = facteurs(0x8a1f2b, 0xa85a8c), HYPO_INT = facteurs(0x86262f, 0x8a4a72);
 
-  function construireVG(hvg: number, dil: number, isch: number) {
+  function construireVG(hvg: number, dil: number, isch: number, hypo = 0) {
     const R = vgR * (1 + 0.32 * dil), L = vgL * (1 + 0.18 * dil);
     const paroiE = 0.24 * (1 + 1.5 * hvg) * (1 - 0.45 * dil);
     const Rext = R + paroiE * 0.45, Rint = R - paroiE * 0.55;
     const ge = new THREE.LatheGeometry(profilVentricule(Rext, L + paroiE * 0.3), leger ? 28 : 44);
     const gi = new THREE.LatheGeometry(profilVentricule(Rint, L - paroiE * 0.6), leger ? 28 : 44);
+    let cx = 0, cy = 0, cz = 0, nc = 0;
     for (const [g, est] of [[ge, true], [gi, false]] as const) {
       const pos = g.attributes.position.array as Float32Array;
       const n = pos.length / 3;
@@ -195,14 +202,20 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
         const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
         const rr = Math.hypot(x, z) || 1;
         const ang = (x * anterieurLocal.x + z * anterieurLocal.z) / rr;
-        const w = isch > 0.02 ? smooth(0.15, 0.6, ang) * smooth(0.2, 0.55, -y / L) * clamp(isch * 2.2, 0, 1) : 0;
+        // Territoire de l'artère interventriculaire antérieure : paroi antérieure et pointe.
+        const terr = smooth(-0.15, 0.35, ang) * smooth(0.05, 0.4, -y / L);
+        const w = isch > 0.02 ? terr * clamp(isch * 2.4, 0, 1) : 0;
+        const h = hypo > 0.02 ? terr * clamp(hypo, 0, 1) * (1 - w) : 0;
         nec[i] = w;
-        const base = est ? [1, 1, 1] : [1, 1, 1];
-        col[i * 3] = base[0] * (1 - 0.55 * w); col[i * 3 + 1] = base[1] * (1 - 0.25 * w); col[i * 3 + 2] = base[2] * (1 - 0.05 * w);
+        const N = est ? NEC_EXT : NEC_INT, Hc = est ? HYPO_EXT : HYPO_INT;
+        for (let c = 0; c < 3; c++) col[i * 3 + c] = 1 + (N[c] - 1) * w + (Hc[c] - 1) * h;
+        if (est && w + h > 0.6) { cx += x; cy += y; cz += z; nc++; }
       }
       g.setAttribute('color', new THREE.BufferAttribute(col, 3));
       if (est) { vgBaseExt = new Float32Array(pos); vgNecExt = nec; } else { vgBaseInt = new Float32Array(pos); vgNecInt = nec; }
     }
+    // Centre de la zone atteinte (repère du cœur), pour y placer l'étiquette.
+    if (nc) necCentre.set(cx / nc, cy / nc, cz / nc).multiplyScalar(1.08).applyQuaternion(vg.group.quaternion).add(vg.group.position);
     vg.ext.geometry.dispose(); vg.int.geometry.dispose();
     vg.ext.geometry = ge; vg.extDos.geometry = ge; vg.int.geometry = gi; vg.intDos.geometry = gi;
   }
@@ -484,7 +497,8 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     const fantome = choisi && ANCRES[choisi] && !['aorte', 'veinesCaves', 'veinesPulm', 'artPulm', 'carotides'].includes(choisi);
     for (const m of parois) {
       const z = m.userData.zone as ZoneId;
-      const cible = fantome && z !== choisi ? Math.min(opacite, (choisi === 'coronaires' ? 0.85 : 0.16)) : opacite;
+      // Coronaires : le ventricule gauche qu'elles nourrissent reste opaque (on y voit l'ischémie ou la nécrose).
+      const cible = fantome && z !== choisi && !(choisi === 'coronaires' && z === 'vg') ? Math.min(opacite, (choisi === 'coronaires' ? 0.85 : 0.16)) : opacite;
       // Les parois restent toujours « transparent » : changer ce drapeau recompile le shader et saccade l'animation.
       m.opacity = cibleOpacite.has(m) ? cible : cible;
       cibleOpacite.set(m, cible);
@@ -723,8 +737,8 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     // Halos de lésion (pulsation).
     halos.forEach((h, k) => {
       const l = lesionsActives[k];
-      h.visible = !!l;
-      if (!l) return;
+      h.visible = !!l && l.r > 0;
+      if (!l || l.r <= 0) return;
       const pul = 1 + 0.18 * Math.sin(temps * 4 + k);
       h.position.copy(l.p); h.scale.setScalar(l.r * pul);
       (h.material as THREE.SpriteMaterial).color.setHex(l.c);
@@ -738,9 +752,12 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
         tmp.copy(l.p).project(camera);
         if (tmp.z > 1) { el.style.display = 'none'; return; }
         el.style.display = 'block';
-        el.textContent = l.nom;
+        if (el.textContent !== l.nom) { el.textContent = l.nom; el.dataset.w = ''; }
         el.style.background = '#' + l.c.toString(16).padStart(6, '0');
-        el.style.transform = `translate(${((tmp.x + 1) / 2) * w + 14}px, ${((1 - tmp.y) / 2) * hh - 10}px)`;
+        // L'étiquette reste dans le cadre (petits écrans) : on la décale vers la gauche si besoin.
+        const lw = +(el.dataset.w ||= String(el.offsetWidth));
+        const x = Math.max(4, Math.min(((tmp.x + 1) / 2) * w + 14, w - lw - 4));
+        el.style.transform = `translate(${x}px, ${((1 - tmp.y) / 2) * hh - 10}px)`;
       });
     }
 
@@ -763,9 +780,10 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     etat = e;
     const t = e.terrain;
     const r = (x: number) => Math.round(x * 25) / 25;
-    const cle = { hvg: r(t.hvg), dil: r(t.dilatation), isch: r(Math.max(t.ischemie, t.occlusion * 0.6)) };
-    if (cle.hvg !== paramsVG.hvg || cle.dil !== paramsVG.dil || cle.isch !== paramsVG.isch) {
-      construireVG(cle.hvg, cle.dil, cle.isch); paramsVG = cle;
+    const isch = Math.max(t.ischemie, t.occlusion * 0.6);
+    const cle = { hvg: r(t.hvg), dil: r(t.dilatation), isch: r(isch), hypo: r(isch > 0.1 ? 0 : clamp((0.9 - e.perfusion.coeur) / 0.25, 0, 1)) };
+    if (cle.hvg !== paramsVG.hvg || cle.dil !== paramsVG.dil || cle.isch !== paramsVG.isch || cle.hypo !== paramsVG.hypo) {
+      construireVG(cle.hvg, cle.dil, cle.isch, cle.hypo); paramsVG = cle;
     }
     thrombus.visible = e.thrombusOG;
     plaque.visible = t.plaqueCoro > 0.08;
@@ -785,7 +803,9 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     if (t.plaqueCoro > 0.15) L.push({ p: courbeIVA.getPointAt(0.3), r: 0.45, c: t.plaqueCoro > 0.85 ? ROUGE : JAUNE, nom: t.plaqueCoro > 0.85 ? 'Artère bouchée' : 'Plaque' });
     if (t.plaqueCarotide > 0.15) L.push({ p: carotides[0].courbe.getPointAt(0.42), r: 0.45, c: JAUNE, nom: 'Carotide rétrécie' });
     if (e.thrombusOG) L.push({ p: P.auricule, r: 0.5, c: ROUGE, nom: 'Caillot' });
-    if (t.ischemie > 0.1) L.push({ p: V(0.62, -0.75, 0.55), r: 0.9, c: ROUGE, nom: 'Nécrose (infarctus)' });
+    // Nécrose et ischémie : montrées par la couleur du muscle, sans halo (étiquette seule).
+    if (t.ischemie > 0.1) L.push({ p: necCentre, r: 0, c: ROUGE, nom: 'Nécrose : muscle mort (gris violacé)' });
+    else if (cle.hypo > 0.1) L.push({ p: necCentre, r: 0, c: VIOLET, nom: 'Manque d\'oxygène (angor)' });
     else if (e.fe < 0.42) L.push({ p: V(0.75, -0.35, 0.35), r: 0.9, c: BLEU, nom: 'Contraction faible' });
     if (e.postcharge > 1.25) L.push({ p: V(0.45, 2.05, -0.3), r: 0.7, c: ORANGE, nom: 'Post-charge ↑ : le cœur force' });
     if (t.hvg > 0.35) L.push({ p: V(0.95, -0.6, -0.1), r: 0.7, c: VIOLET, nom: 'Paroi épaissie' });

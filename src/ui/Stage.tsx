@@ -8,7 +8,7 @@ import { ZONES, type ZoneId } from '../content/zones.ts';
 import type { Coeur3D, Coupe } from '../render/heart3d.ts';
 import { creerCircuit2D, type Circuit2D } from '../render/circuit2d.ts';
 import { creerCorps2D, type Corps2D } from '../render/corps2d.ts';
-import { creerVaisseau2D, SITES, type Site, type Vaisseau2D } from '../render/vaisseau2d.ts';
+import { creerVaisseau2D, ETAPES_ATHERO, SITES, type Site, type Vaisseau2D } from '../render/vaisseau2d.ts';
 import { creerTraces, type ModeTraces, type Traces } from '../render/traces.ts';
 
 type Rendu = Coeur3D | Circuit2D | Corps2D | Vaisseau2D;
@@ -53,13 +53,15 @@ interface Props {
   /** Lecture en cours (visite guidée ou effet du traitement dans le temps). */
   lecture: Lecture | null;
   onLecture: (a: 'prev' | 'next' | 'pause' | 'restart' | 'stop') => void;
+  /** Signale qu'une démonstration propre à la scène (étapes de la plaque) est en cours. */
+  onLectureLocale?: (on: boolean) => void;
   peutRetour: boolean;
   onRetour: () => void;
 }
 
 export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean }
 
-export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue, onVoyage3D, tourActif, lecture, onLecture, peutRetour, onRetour }: Props) {
+export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue, onVoyage3D, tourActif, lecture: lectureApp, onLecture: onLectureApp, onLectureLocale, peutRetour, onRetour }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const [site, setSite] = useState<Site>('coronaire');
@@ -185,6 +187,45 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
   useEffect(() => { if (vue !== '3d' || !tourActif) return; setCoupe('frontale'); setCoupePos(0.1); setOpacite(0.42); return () => setOpacite(1); }, [tourActif, vue]);
   useEffect(() => { const r = rendu.current as Vaisseau2D | null; if (pret && r && 'setSite' in r) r.setSite(site); }, [site, pret, vue]);
 
+  // Démonstration « Étapes de la plaque » : 6 étapes dans le vaisseau, puis le caillot qui voyage dans le corps.
+  const [ath, setAth] = useState<{ i: number; pause: boolean } | null>(null);
+  const N_ATH = ETAPES_ATHERO.length + 1;
+  const vueAth = (i: number): Vue => (i < ETAPES_ATHERO.length ? 'vaisseau' : 'corps');
+  const allerAth = (i: number, pause?: boolean) => {
+    setAth((a) => ({ i, pause: pause ?? a?.pause ?? false }));
+    if (vueAth(i) !== vue) onVue(vueAth(i));
+  };
+  useEffect(() => {
+    if (!ath || ath.pause || ath.i >= N_ATH - 1) return;
+    const id = setTimeout(() => allerAth(ath.i + 1), 5200);
+    return () => clearTimeout(id);
+  }, [ath, vue]);
+  // Un changement de vue fait à la main, ou une autre lecture, arrête la démonstration.
+  useEffect(() => { if (ath && vue !== vueAth(ath.i)) setAth(null); }, [vue]);
+  useEffect(() => { if (lectureApp) setAth(null); }, [lectureApp]);
+  useEffect(() => { onLectureLocale?.(!!ath); }, [!!ath]);
+  useEffect(() => {
+    const r = rendu.current;
+    if (!pret || !r) return;
+    if ('setEtape' in r) r.setEtape(ath && ath.i < ETAPES_ATHERO.length ? ath.i : null);
+    if ('embolie' in r) { const on = !!ath && ath.i === ETAPES_ATHERO.length; r.embolie(on); if (on) r.focus(null); }
+  }, [ath, pret, vue]);
+  const lecture: Lecture | null = lectureApp ?? (ath ? {
+    titre: 'Plaque d\'athérome',
+    ...(ath.i < ETAPES_ATHERO.length
+      ? { texte: `${ETAPES_ATHERO[ath.i].titre} : ${ETAPES_ATHERO[ath.i].texte}`, detail: ETAPES_ATHERO[ath.i].detail }
+      : { texte: 'Le caillot voyage : un fragment parti d\'une plaque carotidienne bouche une artère du cerveau (AVC ischémique).', detail: 'Sur une plaque coronaire, le caillot provoque l\'infarctus ; dans une artère de jambe, l\'ischémie aiguë du membre.' }),
+    index: ath.i, total: N_ATH, pause: ath.pause,
+  } : null);
+  const onLecture = (a: 'prev' | 'next' | 'pause' | 'restart' | 'stop') => {
+    if (lectureApp || !ath) { onLectureApp(a); return; }
+    if (a === 'prev') allerAth(Math.max(0, ath.i - 1));
+    else if (a === 'next') allerAth(Math.min(N_ATH - 1, ath.i + 1));
+    else if (a === 'pause') setAth({ ...ath, pause: !ath.pause });
+    else if (a === 'restart') allerAth(0, false);
+    else { setAth(null); if (vue !== 'vaisseau') onVue('vaisseau'); }
+  };
+
   /** Compose une image : fond, scène, légende et signature discrète. */
   const composer = (src: HTMLCanvasElement, dst: HTMLCanvasElement) => {
     const g = dst.getContext('2d')!;
@@ -250,7 +291,8 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
 
   return (
     <div className="relative w-full h-full overflow-hidden rounded-2xl border border-line bg-[radial-gradient(ellipse_at_50%_35%,#1b1630_0%,#0b0f1c_55%,#070a12_100%)]" data-testid="scene">
-      <div ref={hote} className="absolute inset-0" />
+      {/* Sur téléphone, la scène s'arrête au-dessus du bandeau de lecture : rien n'est caché dessous. */}
+      <div ref={hote} className={`absolute inset-x-0 top-0 ${lecture ? 'bottom-[92px] lg:bottom-0' : 'bottom-0'}`} />
       {!pret && !erreur3D && <div className="absolute inset-0 grid place-items-center text-muted text-sm">Préparation de la scène…</div>}
       {erreur3D && <div className="absolute inset-0 grid place-items-center text-center p-6 text-muted text-sm">La 3D n'est pas disponible sur cet appareil.<br />Utilisez la vue 2D.</div>}
 
@@ -266,7 +308,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
           <span className="w-2.5 h-2.5 rounded-full bg-alert animate-pulse" /> Enregistrement {Math.floor(duree / 60)}:{String(Math.floor(duree % 60)).padStart(2, '0')} · {enreg.son ? 'avec son' : 'sans son (activez le son en haut)'}
         </div>
       )}
-      {zone && !zoneDansVue(zone, vue) && !nomSurvol && (
+      {zone && !zoneDansVue(zone, vue) && !nomSurvol && !lecture && (
         <div className="absolute top-12 lg:top-14 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-ink/90 border border-accent/40 px-3 py-1 text-xs">
           <span className="text-muted">{ZONES[zone].nom} se voit dans la vue</span>
           <button onClick={() => onVue(vuePour(zone))} className="font-semibold text-accent">{NOMS_VUES[vuePour(zone)]} →</button>
@@ -306,7 +348,12 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
         </div>
       )}
 
-      {vue === 'vaisseau' && pret && (
+      {vue === 'vaisseau' && pret && !lecture && (
+        <button onClick={() => allerAth(0, false)} className="absolute z-20 top-12 right-2 rounded-full bg-sang hover:brightness-110 text-white text-[12px] font-bold pl-2.5 pr-3.5 py-1.5 inline-flex items-center gap-1.5 shadow-[0_4px_18px_rgba(224,65,78,.45)]">
+          <Play size={13} fill="currentColor" /> Étapes de la plaque
+        </button>
+      )}
+      {vue === 'vaisseau' && pret && !lecture && (
         <div className="absolute bottom-7 lg:bottom-3 left-1/2 -translate-x-1/2 seg flex-wrap justify-center max-w-[95%] text-[11px]">
           {SITES.map((x) => <button key={x.id} className={site === x.id ? 'actif' : ''} onClick={() => setSite(x.id)}>{x.nom}</button>)}
         </div>

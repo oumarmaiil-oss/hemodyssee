@@ -61,6 +61,8 @@ export interface Corps2D {
   focus(z: ZoneId | null): void;
   selection(z: ZoneId | null): void;
   setEtiquettes(on: boolean, noms: Partial<Record<ZoneId, string>>): void;
+  /** Démonstration : un fragment de plaque carotidienne part vers le cerveau (AVC). */
+  embolie(on: boolean): void;
   dispose(): void;
 }
 
@@ -81,7 +83,10 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
   const N = opt.leger ? 180 : 340;
   const pa = Array.from({ length: N }, () => ({ c: tire(ART), s: Math.random(), o: Math.random() - 0.5 }));
   const pv = Array.from({ length: Math.round(N * 0.7) }, () => ({ c: tire(VEI), s: Math.random(), o: Math.random() - 0.5 }));
-  let embole: { s: number; arret: number } | null = null, prochain = 5;
+  // Caillot qui voyage : depuis le cœur (FA) ou depuis une plaque carotidienne.
+  let embole: { s: number; arret: number; src: 'coeur' | 'carotide' } | null = null, prochain = 5, demo = false;
+  /** Abscisse curviligne de la plaque carotidienne sur le trajet vers le cerveau. */
+  const S_CAROTIDE = (() => { const c = ART[0]; let best = 0, d = 1e9; for (let s = 0; s <= 1; s += 0.01) { const [, y] = at(c, s); if (Math.abs(y - 162) < d) { d = Math.abs(y - 162); best = s; } } return best; })();
 
   let etat: Etat | null = null;
   let choisi: ZoneId | null = null, survol: ZoneId | null = null;
@@ -169,7 +174,7 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
     ligne([[252, 275], [300, 300]], 4, '#e04a58'); ligne([[348, 275], [325, 300]], 4, '#e04a58');
     // Plaques.
     const plaque = (x: number, y: number, s: number, rot = 0) => { if (s < 0.08) return; g.fillStyle = '#f2c94c'; g.beginPath(); g.ellipse(x, y, 5 + 5 * s, 11, rot, 0, 7); g.fill(); };
-    plaque(287, 160, t?.plaqueCarotide ?? 0); plaque(312, 160, (t?.plaqueCarotide ?? 0) * 0.7);
+    plaque(287, 160, demo ? Math.max(0.66, t?.plaqueCarotide ?? 0) : t?.plaqueCarotide ?? 0); plaque(312, 160, (t?.plaqueCarotide ?? 0) * 0.7);
     plaque(250, 680, t?.plaqueMembres ?? 0); plaque(352, 680, t?.plaqueMembres ?? 0);
 
     // Cœur.
@@ -194,7 +199,7 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
     const nL = t ? Math.round(clamp((t.ldl - 2.2) / 2.8, 0, 1) * 30) : 0;
     g.fillStyle = '#ffd84a';
     for (let k = 0; k < nL; k++) { const p = pa[(k * 11) % pa.length]; const [x, y] = at(p.c, (p.s + 0.02) % 1); g.beginPath(); g.arc(x - p.o * 3, y, 1.8, 0, 7); g.fill(); }
-    if (embole) { const [x, y] = at(ART[0], embole.s); g.fillStyle = '#2a0508'; g.strokeStyle = '#ff6070'; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); g.stroke(); if (embole.arret > 0) texte('Caillot → AVC', x + 44, y); }
+    if (embole) { const [x, y] = at(ART[0], embole.s); const re = demo ? 8 : 5; g.fillStyle = 'rgba(255,96,112,.25)'; g.beginPath(); g.arc(x, y, re + 6, 0, 7); g.fill(); g.fillStyle = '#2a0508'; g.strokeStyle = '#ff6070'; g.lineWidth = 2; g.beginPath(); g.arc(x, y, re, 0, 7); g.fill(); g.stroke(); if (embole.arret > 0) { texte(embole.src === 'coeur' ? 'Caillot du cœur → AVC' : 'Fragment de plaque → AVC', x + 70, y); g.fillStyle = 'rgba(25,20,35,.75)'; g.beginPath(); g.ellipse(296, 66, 16, 11, 0.4, 0, 7); g.fill(); } }
 
     // Œdèmes : l'eau monte dans les jambes comme dans un verre.
     const oed = e?.oedemes ?? 0;
@@ -221,6 +226,15 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
     }
     if (claudication) texte('Mollet : manque d\'oxygène à la marche', 520, 765, '#d6b4ff');
     if (mem < 0.6) texte('Ischémie du pied', 520, 905, '#fb7185');
+    // Lésions des organes, cohérentes avec les vues Cœur et Vaisseau.
+    {
+      const isch = Math.max(t?.ischemie ?? 0, t?.occlusion ?? 0);
+      if (isch > 0.05) texte('Infarctus : coronaire bouchée', 500, 338, '#fb7185');
+      else if (perf.coeur < 0.85) texte('Angor : le cœur manque d\'oxygène', 500, 338, '#d6b4ff');
+      if (demo) texte('Plaque carotidienne serrée', 420, 186, '#ffe08a');
+      else if ((t?.plaqueCarotide ?? 0) > 0.15) texte(`Plaque carotidienne ${Math.round((t!.plaqueCarotide) * 92)} %`, 420, 186, '#ffe08a');
+      if ((t?.avc ?? 0) > 0.05) texte('AVC : zone du cerveau privée de sang', 300, 128, '#fb7185');
+    }
 
     for (const r of REGIONS) if (r.z === choisi || r.z === survol) {
       g.strokeStyle = r.z === choisi ? 'rgba(125,211,252,.95)' : 'rgba(255,255,255,.4)'; g.lineWidth = 2; g.setLineDash([6, 4]);
@@ -241,13 +255,14 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
     const f = { cerveau: e?.perfusion.cerveau ?? 1, reins: e?.perfusion.reins ?? 1, membres: e?.perfusion.membres ?? 1, bras: 1, coeur: Math.min(1, e?.perfusion.coeur ?? 1) };
     for (const p of pa) { p.s += (v * (0.4 + 1.2 * i.ouvertureSig) * (p.s > 0.6 ? 0.5 + 0.5 * f[p.c.organe] : 1) * dt) / p.c.len; if (p.s >= 1) p.s -= 1; }
     for (const p of pv) { p.s += (v * 0.55 * dt) / p.c.len; if (p.s >= 1) p.s -= 1; }
-    if (e?.thrombusOG) {
+    const srcEmb = e?.thrombusOG ? 'coeur' : demo || e?.embolieCarotide ? 'carotide' : null;
+    if (srcEmb) {
       prochain -= dt;
-      if (!embole && prochain <= 0) { embole = { s: 0, arret: 0 }; prochain = 8; }
+      if (!embole && prochain <= 0) { embole = { s: srcEmb === 'coeur' ? 0 : S_CAROTIDE, arret: 0, src: srcEmb }; prochain = demo ? 2 : 8; }
     } else embole = null;
     if (embole) {
       if (embole.arret > 0) { embole.arret -= dt; if (embole.arret <= 0) embole = null; }
-      else { embole.s += (v * 0.7 * dt) / ART[0].len; if (embole.s >= 0.97) { embole.s = 0.97; embole.arret = 2.5; } }
+      else { embole.s += (v * (embole.src === 'carotide' ? 0.35 : 0.7) * dt) / ART[0].len; if (embole.s >= 0.97) { embole.s = 0.97; embole.arret = demo ? 3.5 : 2.5; } }
     }
   }
 
@@ -269,6 +284,7 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
     },
     selection(z) { choisi = z; },
     setEtiquettes(on) { labels = on; },
+    embolie(on) { demo = on; if (on) { embole = null; prochain = 0.4; } },
     dispose() { ro.disconnect(); cv.removeEventListener('pointermove', onMove); cv.removeEventListener('pointerup', onUp); cv.remove(); },
   };
 }
