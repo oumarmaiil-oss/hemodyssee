@@ -10,9 +10,14 @@ import { construireTerrain, PATHO_PAR_ID, type PathoActive } from '../content/pa
 import { CLASSE_PAR_ID } from '../content/classes.ts';
 import { Stage, zoneEn3D, type Vue } from './Stage.tsx';
 import { Moniteur } from './widgets.tsx';
-import { PanneauEvolution, PanneauExplorer, PanneauMaladies, VOYAGE, type VueEvolution } from './panels.tsx';
+import { DETAILS_VISITE, PanneauEvolution, PanneauExplorer, PanneauMaladies, VOYAGE, type VueEvolution } from './panels.tsx';
 
 type Onglet = 'explorer' | 'maladies' | 'evolution';
+
+const PHASES = [
+  { mois: 0, nom: 'Avant le traitement' }, { mois: 1, nom: '1 mois de traitement' }, { mois: 6, nom: '6 mois de traitement' },
+  { mois: 12, nom: '1 an de traitement' }, { mois: 36, nom: '3 ans de traitement' }, { mois: 60, nom: '5 ans de traitement' },
+];
 
 const TOUR = VOYAGE.filter((v) => zoneEn3D(v.z));
 
@@ -64,6 +69,11 @@ export default function App() {
     return calculer(terrains[vueEvo.mois], traitement, { fraction: f });
   }, [vueEvo, etatAuj, terrain, traitement]);
 
+  const etatSansMois = useMemo(() => {
+    if (!vueEvo) return null;
+    const { terrains } = evoluer(terrain, traitement, 'sans');
+    return calculer(terrains[vueEvo.mois], {}, {});
+  }, [vueEvo, terrain, traitement]);
   const legende = [
     actives.map((a) => PATHO_PAR_ID[a.id].court).join(' + ') || 'Sujet sain',
     Object.keys(traitement).length ? 'Traitement : ' + (Object.keys(traitement) as ClasseId[]).map((c) => CLASSE_PAR_ID[c].court).join(', ') : '',
@@ -71,13 +81,33 @@ export default function App() {
   ].filter(Boolean).join(' · ');
   // Visite guidée : la caméra suit le sang étape par étape dans le cœur en 3D.
   const [tour, setTour] = useState<number | null>(null);
+  const [tourPause, setTourPause] = useState(false);
   useEffect(() => {
     if (tour === null) return;
     setZone(TOUR[tour].z);
-    const t = setTimeout(() => setTour((k) => (k === null || k >= TOUR.length - 1 ? null : k + 1)), 4200);
+    if (tourPause) return;
+    const t = setTimeout(() => setTour((k) => (k === null || k >= TOUR.length - 1 ? null : k + 1)), 5200);
     return () => clearTimeout(t);
-  }, [tour]);
+  }, [tour, tourPause]);
   useEffect(() => { if (vue !== '3d') setTour(null); }, [vue]);
+  useEffect(() => { if (tour === null) setTourPause(false); }, [tour]);
+
+  // Effet du traitement dans le temps : la scène rejoue le patient avant, puis à 1 mois, 6 mois, 1 an, 3 ans, 5 ans.
+  const [seq, setSeq] = useState<number | null>(null);
+  const [seqPause, setSeqPause] = useState(false);
+  useEffect(() => {
+    if (seq === null) return;
+    setVueEvo({ scenario: 'avec', mois: PHASES[seq].mois, arret: 24 });
+    if (seqPause) return;
+    const t = setTimeout(() => setSeq((k) => (k === null || k >= PHASES.length - 1 ? null : k + 1)), 2600);
+    return () => clearTimeout(t);
+  }, [seq, seqPause]);
+  useEffect(() => { if (seq === null) setSeqPause(false); }, [seq]);
+  const lancerSequence = () => { setTour(null); setSeq(0); };
+  const comparer = () => { setSeq(null); setVueEvo({ scenario: 'sans', mois: 12, arret: 24 }); };
+
+  // Historique des zones visitées, pour le bouton « Retour ».
+  const [histo, setHisto] = useState<ZoneId[]>([]);
   // Le bouton « Cœur » se souvient du dernier mode (2D ou 3D).
   const [modeCoeur, setModeCoeur] = useState<'3d' | 'coeur2d'>('3d');
   useEffect(() => { if (vue === '3d' || vue === 'coeur2d') setModeCoeur(vue); }, [vue]);
@@ -99,7 +129,11 @@ export default function App() {
     setVueEvo(null);
   };
   const onDose = (c: ClasseId, d: number) => { setTraitement((t) => { const n = { ...t }; if (d) n[c] = d; else delete n[c]; return n; }); };
-  const onZone = (z: ZoneId | null) => { setZone(z); if (z) setOnglet('explorer'); };
+  const onZone = (z: ZoneId | null) => {
+    if (zone && z !== zone) setHisto((h) => [...h.slice(-19), zone]);
+    setZone(z); if (z) setOnglet('explorer');
+  };
+  const retour = () => { setHisto((h) => { const p = h[h.length - 1] ?? null; setZone(p); return h.slice(0, -1); }); };
   const basculerSon = () => {
     if (sonOn) { son.couper(); setSonOn(false); }
     else if (son.activer()) setSonOn(true);
@@ -154,17 +188,42 @@ export default function App() {
       {/* Corps */}
       <main className="flex-1 min-h-0 max-w-[1600px] w-full mx-auto p-2 sm:p-4 grid gap-2 lg:gap-3 grid-rows-[auto_minmax(0,1fr)] grid-cols-[minmax(0,1fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col gap-2 lg:gap-3 min-w-0">
-          <div className="h-[34dvh] min-h-[220px] lg:h-[calc(100vh-190px)] lg:min-h-[520px]">
-            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} legende={legende} onVue={setVue} onVoyage3D={() => { setVue('3d'); setTour(0); }} tourTexte={tour !== null ? `${tour + 1}/${TOUR.length} · ${TOUR[tour].etape}` : null} tourActif={tour !== null} onStopTour={() => { setTour(null); setZone(null); }} />
+          <div className={`${tour !== null || seq !== null ? 'h-[50dvh]' : 'h-[34dvh]'} transition-[height] duration-300 min-h-[220px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
+            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} legende={legende} onVue={setVue}
+              onVoyage3D={() => { setSeq(null); setVue('3d'); setTourPause(false); setTour(0); }}
+              tourActif={tour !== null}
+              lecture={tour !== null ? { titre: 'Voyage du sang', texte: TOUR[tour].etape, detail: DETAILS_VISITE[TOUR[tour].z]?.[niveau === 1 ? 0 : 1], index: tour, total: TOUR.length, pause: tourPause }
+                : seq !== null ? { titre: 'Effet du traitement', texte: PHASES[seq].nom, detail: `PA ${etatScene.pas}/${etatScene.pad} · LDL ${etatScene.ldl.toFixed(1)} · risque d'AVC ×${etatScene.risques.avc.toFixed(1)}`, index: seq, total: PHASES.length, pause: seqPause } : null}
+              onLecture={(a) => {
+                if (tour !== null) {
+                  if (a === 'pause') setTourPause((p) => !p);
+                  else if (a === 'prev') setTour((k) => Math.max(0, (k ?? 0) - 1));
+                  else if (a === 'next') setTour((k) => Math.min(TOUR.length - 1, (k ?? 0) + 1));
+                  else if (a === 'restart') { setTourPause(false); setTour(0); }
+                  else { setTour(null); setZone(null); }
+                } else if (seq !== null) {
+                  if (a === 'pause') setSeqPause((p) => !p);
+                  else if (a === 'prev') setSeq((k) => Math.max(0, (k ?? 0) - 1));
+                  else if (a === 'next') setSeq((k) => Math.min(PHASES.length - 1, (k ?? 0) + 1));
+                  else if (a === 'restart') { setSeqPause(false); setSeq(0); }
+                  else setSeq(null);
+                }
+              }}
+              peutRetour={histo.length > 0} onRetour={retour} />
           </div>
-          {vueEvo && (
-            <div className="rounded-xl border border-warn/40 bg-warn/8 px-3 py-2 text-[13px] flex items-center gap-2">
-              <TrendingUp size={15} className="text-warn" />
-              La scène montre le patient {vueEvo.scenario === 'sans' ? 'sans traitement' : vueEvo.scenario === 'avec' ? 'avec le traitement suivi' : `après arrêt du traitement (mois ${vueEvo.arret})`}, au bout de {vueEvo.mois} mois.
+          {vueEvo && seq === null && (
+            <div className="rounded-xl border border-warn/40 bg-warn/8 px-2.5 py-1.5 text-[12.5px] flex flex-wrap items-center gap-2">
+              <TrendingUp size={15} className="text-warn shrink-0" />
+              <span>Au bout de <b>{vueEvo.mois < 12 ? `${vueEvo.mois} mois` : `${vueEvo.mois / 12} an${vueEvo.mois >= 24 ? 's' : ''}`}</b> :</span>
+              <div className="seg">
+                {(['sans', 'avec', 'arret'] as const).filter((k) => k === 'sans' || Object.keys(traitement).length).map((k) => (
+                  <button key={k} className={vueEvo.scenario === k ? 'actif' : ''} onClick={() => setVueEvo({ ...vueEvo, scenario: k })}>{k === 'sans' ? 'Sans traitement' : k === 'avec' ? 'Avec' : 'Arrêté'}</button>
+                ))}
+              </div>
               <button onClick={() => setVueEvo(null)} className="ml-auto text-xs font-semibold text-txt">Revenir à aujourd'hui</button>
             </div>
           )}
-          <Moniteur e={etatScene} niveau={niveau} />
+          <Moniteur e={etatScene} niveau={niveau} ref0={vueEvo && vueEvo.scenario !== 'sans' ? etatSansMois : null} />
         </section>
 
         <aside className="min-w-0 min-h-0 lg:h-[calc(100vh-88px)] lg:sticky lg:top-[68px] flex flex-col rounded-2xl border border-line bg-panel overflow-hidden">
@@ -180,7 +239,7 @@ export default function App() {
           <div className="flex-1 overflow-y-auto scroll-thin p-3.5" data-testid="panneau">
             {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} etat={etatScene} actives={actives} onZone={onZone} onTogglePatho={togglePatho} onVue={setVue} onVoirPatho={(id) => { setFocusPatho(id); }} />}
             {onglet === 'maladies' && <PanneauMaladies niveau={niveau} vue={vue} zone={zone} actives={actives} focus={focusPatho} traitement={traitement} etat={etatAuj} etatSans={etatSans} labo={labo}
-              onFocus={setFocusPatho} onToggle={togglePatho} onDose={onDose} onRemplacer={setTraitement}
+              onFocus={setFocusPatho} onToggle={togglePatho} onDose={onDose} onRemplacer={setTraitement} onSequence={lancerSequence} onComparer={comparer}
               onSeverite={(id, s) => setActives((a) => a.map((x) => (x.id === id ? { ...x, s } : x)))} onScenario={(a) => { setActives(a); setTraitement({}); setVueEvo(null); setFocusPatho(null); if (a[0] && ZONE_LESION[a[0].id]) setZone(ZONE_LESION[a[0].id]); }} />}
             {onglet === 'evolution' && <PanneauEvolution terrain={terrain} traitement={traitement} vueEvo={vueEvo} onVueEvo={setVueEvo} onAllerTraitements={() => setOnglet('maladies')} />}
           </div>

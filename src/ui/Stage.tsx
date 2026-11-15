@@ -1,6 +1,6 @@
 /** Scène principale : cœur 3D ou voyage du sang 2D, animés par une horloge commune. */
 import { useEffect, useRef, useState } from 'react';
-import { Box, Camera, Circle, Eye, Layers, Play, RotateCcw, Scissors, Square, Tag } from 'lucide-react';
+import { Activity, Camera, Circle, Layers, Pause, Play, RotateCcw, Scissors, SkipBack, SkipForward, Square, Tag, X } from 'lucide-react';
 import { Horloge, NOMS_PHASES, type Phase } from '../core/clock.ts';
 import type { Son } from '../core/audio.ts';
 import type { Etat, Niveau } from '../core/types.ts';
@@ -9,6 +9,7 @@ import type { Coeur3D, Coupe } from '../render/heart3d.ts';
 import { creerCircuit2D, type Circuit2D } from '../render/circuit2d.ts';
 import { creerCorps2D, type Corps2D } from '../render/corps2d.ts';
 import { creerVaisseau2D, SITES, type Site, type Vaisseau2D } from '../render/vaisseau2d.ts';
+import { creerTraces, type ModeTraces, type Traces } from '../render/traces.ts';
 
 type Rendu = Coeur3D | Circuit2D | Corps2D | Vaisseau2D;
 const SITE_DE_ZONE: Partial<Record<ZoneId, Site>> = { coronaires: 'coronaire', carotides: 'carotide', cerveau: 'carotide', membres: 'jambe', aorte: 'aorte', reins: 'arteriole', vg: 'coronaire' };
@@ -31,7 +32,11 @@ export const NOMS_VUES: Record<Vue, string> = { '3d': 'Cœur 3D', coeur2d: 'Cœu
 /** Meilleure vue pour une zone : le cœur pour ses structures, le corps pour les organes. */
 export const vuePour = (z: ZoneId): Vue => (zoneEn3D(z) ? '3d' : zoneDansVue(z, 'corps') ? 'corps' : '2d');
 
-const leger = typeof navigator !== 'undefined' && ((navigator.hardwareConcurrency ?? 8) <= 4 || /[?&]leger/.test(location.search));
+const leger = typeof navigator !== 'undefined' && (
+  (navigator.hardwareConcurrency ?? 8) <= 4
+  || /[?&]leger/.test(location.search)
+  || (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 900)
+) && !/[?&]complet/.test(location.search);
 
 interface Props {
   vue: Vue;
@@ -44,15 +49,25 @@ interface Props {
   legende: string;
   onVue: (v: Vue) => void;
   onVoyage3D: () => void;
-  tourTexte: string | null;
   tourActif: boolean;
-  onStopTour: () => void;
+  /** Lecture en cours (visite guidée ou effet du traitement dans le temps). */
+  lecture: Lecture | null;
+  onLecture: (a: 'prev' | 'next' | 'pause' | 'restart' | 'stop') => void;
+  peutRetour: boolean;
+  onRetour: () => void;
 }
 
-export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue, onVoyage3D, tourTexte, tourActif, onStopTour }: Props) {
+export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean }
+
+export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue, onVoyage3D, tourActif, lecture, onLecture, peutRetour, onRetour }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const [site, setSite] = useState<Site>('coronaire');
+  const petitEcran = typeof window !== 'undefined' && window.innerWidth < 700;
+  const [traces, setTraces] = useState<ModeTraces>(() => (petitEcran || niveau === 1 ? 'aucun' : 'ecg'));
+  const avecTraces = vue === '3d' || vue === 'coeur2d' || vue === '2d';
+  const cvTraces = useRef<HTMLCanvasElement>(null);
+  const moteurTraces = useRef<Traces | null>(null);
   const horloge = useRef(new Horloge());
   const etatRef = useRef(etat);
   const phaseRef = useRef<HTMLSpanElement>(null);
@@ -110,6 +125,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
       const i = horloge.current.avancer(dt);
       if (visible.current || captureRef.current) rendu.current?.frame(i, dt);
+      if (visible.current) moteurTraces.current?.frame(i, dt, etatRef.current);
       if (captureRef.current) { const c = hote.current?.querySelector('canvas'); if (c) captureRef.current(c); }
       son.tick(i, etatRef.current);
       if (i.phase !== dernierePhase && phaseRef.current) { dernierePhase = i.phase; phaseRef.current.textContent = NOMS_PHASES[i.phase]; }
@@ -144,9 +160,27 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
     else setCoupe('aucune');
   }, [zone, vue, tourActif]);
 
+  useEffect(() => {
+    if (!cvTraces.current) return;
+    const t = creerTraces(cvTraces.current);
+    moteurTraces.current = t;
+    return () => { t.dispose(); moteurTraces.current = null; };
+  }, [traces !== 'aucun' && avecTraces]);
+  useEffect(() => { moteurTraces.current?.setMode(traces); }, [traces]);
+  useEffect(() => { if (niveau === 1 && traces === 'tout') setTraces('ecg'); }, [niveau, traces]);
+  useEffect(() => {
+    if (!zone || !avecTraces) return;
+    if (zone === 'noeudSinusal' || zone === 'noeudAV') setTraces((m) => (m === 'aucun' ? 'ecg' : m));
+    else if (niveau >= 2 && ['valveMi', 'valveAo', 'vg', 'og'].includes(zone) && !petitEcran) setTraces('tout');
+  }, [zone]);
   useEffect(() => { if (zone && SITE_DE_ZONE[zone]) setSite(SITE_DE_ZONE[zone]!); }, [zone]);
   // Pendant la visite guidée, la caméra se déplace lentement d'une étape à l'autre, sans à-coups.
-  useEffect(() => { const r = rendu.current as Coeur3D | null; if (pret && r && 'setDureeTween' in r) r.setDureeTween(tourActif ? 3.4 : 0.9); }, [tourActif, pret, vue]);
+  useEffect(() => {
+    const r = rendu.current as Coeur3D | null;
+    if (!pret || !r || !('setDureeTween' in r)) return;
+    r.setDureeTween(tourActif ? 4.2 : 0.9);
+    r.setInteraction(!tourActif);
+  }, [tourActif, pret, vue]);
   // Pendant la visite, le cœur reste ouvert et à demi transparent : on voit le sang passer.
   useEffect(() => { if (vue !== '3d' || !tourActif) return; setCoupe('frontale'); setCoupePos(0.1); setOpacite(0.42); return () => setOpacite(1); }, [tourActif, vue]);
   useEffect(() => { const r = rendu.current as Vaisseau2D | null; if (pret && r && 'setSite' in r) r.setSite(site); }, [site, pret, vue]);
@@ -243,7 +277,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
       )}
 
       {/* Barre d'outils : une seule ligne, qui défile horizontalement sur téléphone */}
-      <div className="absolute top-2 left-2 right-2 flex gap-1.5 overflow-x-auto scroll-thin lg:justify-end lg:overflow-visible [&::-webkit-scrollbar]:hidden">
+      <div className="absolute z-20 top-2 left-2 right-2 flex gap-1.5 overflow-x-auto scroll-thin lg:justify-end lg:overflow-visible [&::-webkit-scrollbar]:hidden">
         {(vue === '3d' || vue === 'coeur2d') && (
           <div className="seg shrink-0">
             <button className={vue === 'coeur2d' ? 'actif' : ''} onClick={() => onVue('coeur2d')}>2D</button>
@@ -253,13 +287,15 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
         {vue === '3d' && !tourActif && (
           <button onClick={() => setOutils((v) => !v)} className={`btn-outil shrink-0 ${outils ? 'actif' : ''}`} aria-label="Ouvrir le cœur et régler la transparence"><Scissors size={14} /> Ouvrir</button>
         )}
+        {peutRetour && <button onClick={onRetour} className="btn-outil shrink-0" aria-label="Revenir à la zone précédente">← Retour</button>}
+        {avecTraces && <button onClick={() => setTraces((m) => (m === 'aucun' ? 'ecg' : m === 'ecg' && niveau >= 2 ? 'tout' : 'aucun'))} className={`btn-outil shrink-0 ${traces !== 'aucun' ? 'actif' : ''}`} aria-label="Afficher l'ECG et les pressions"><Activity size={14} /> {traces === 'tout' ? 'ECG + pressions' : 'ECG'}</button>}
         <button onClick={() => setEtiquettes((v) => !v)} className={`btn-outil shrink-0 ${etiquettes ? 'actif' : ''}`} aria-label="Afficher les noms des structures"><Tag size={14} /> Noms</button>
         <button onClick={photo} className="btn-outil shrink-0" aria-label="Exporter une photo"><Camera size={14} /> Photo</button>
         <button onClick={video} className={`btn-outil shrink-0 ${enreg ? 'actif' : ''}`} aria-label="Enregistrer une vidéo">{enreg ? <Square size={13} /> : <Circle size={14} />} {enreg ? 'Stop' : 'Vidéo'}</button>
         <button onClick={() => { onZone(null); setCoupe('aucune'); const r = rendu.current as Coeur3D | null; if (r && 'vueInitiale' in r) r.vueInitiale(); else rendu.current?.focus(null); }} className="btn-outil shrink-0" aria-label="Revenir à la vue d'ensemble"><RotateCcw size={14} /> Tout voir</button>
       </div>
       {vue === '3d' && pret && outils && !tourActif && (
-        <div className="absolute top-12 right-2 w-52 rounded-xl bg-ink/90 border border-line p-2.5 space-y-2 text-xs fade-in">
+        <div className="absolute z-20 top-12 right-2 w-52 rounded-xl bg-ink/90 border border-line p-2.5 space-y-2 text-xs fade-in">
           <label className="flex items-center justify-between gap-2 text-muted cursor-pointer">
             <span className="flex items-center gap-1.5"><Scissors size={13} /> Couper le cœur en deux</span>
             <input type="checkbox" checked={coupe !== 'aucune'} onChange={(e) => setCoupe(e.target.checked ? 'frontale' : 'aucune')} className="accent-[#e0414e] w-4 h-4" />
@@ -276,11 +312,29 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
         </div>
       )}
 
-      {/* Visite guidée du voyage du sang en 3D */}
-      {tourTexte ? (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[94%] rounded-2xl bg-ink/90 border border-sang/50 px-3 py-2 text-[12.5px] flex items-center gap-2 fade-in">
-          <span className="w-2.5 h-2.5 rounded-full bg-sang animate-pulse shrink-0" /><span>{tourTexte}</span>
-          <button onClick={onStopTour} className="text-xs text-muted hover:text-txt shrink-0">Arrêter</button>
+      {/* Visite guidée du voyage du sang */}
+      {lecture ? (
+        <div className="absolute z-20 bottom-2 left-1/2 -translate-x-1/2 w-[96%] max-w-lg rounded-2xl bg-ink/92 border border-sang/50 overflow-hidden fade-in" role="status" aria-live="polite">
+          <div className="flex gap-0.5 p-0.5">
+            {Array.from({ length: lecture.total }, (_, k) => (
+              <div key={k} className="h-1 flex-1 rounded-full bg-card2 overflow-hidden"><div className={`h-full bg-sang ${k < lecture.index ? 'w-full' : k === lecture.index ? (lecture.pause ? 'w-1/2' : 'w-full transition-[width] duration-[4000ms] ease-linear') : 'w-0'}`} key={`${k}-${lecture.index}`} /></div>
+            ))}
+          </div>
+          <div className="px-2.5 pb-1.5 pt-0.5 flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${lecture.pause ? 'bg-muted' : 'bg-sang animate-pulse'}`} />
+            <div className="min-w-0 flex-1">
+              <div className="text-[9.5px] uppercase tracking-wider text-dim truncate">{lecture.pause ? 'En pause' : 'Lecture en cours'} · {lecture.titre} · {lecture.index + 1}/{lecture.total}</div>
+              <div className="text-[12.5px] font-semibold leading-tight">{lecture.texte}</div>
+              {lecture.detail && <div className="text-[11px] text-muted leading-tight mt-0.5 truncate sm:whitespace-normal">{lecture.detail}</div>}
+            </div>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <button onClick={() => onLecture('prev')} disabled={lecture.index === 0} className="btn-icone w-8 h-8 disabled:opacity-35" aria-label="Étape précédente"><SkipBack size={14} /></button>
+              <button onClick={() => onLecture('pause')} className="btn-icone w-8 h-8" aria-label={lecture.pause ? 'Reprendre' : 'Mettre en pause'}>{lecture.pause ? <Play size={14} fill="currentColor" /> : <Pause size={14} />}</button>
+              <button onClick={() => onLecture('next')} disabled={lecture.index >= lecture.total - 1} className="btn-icone w-8 h-8 disabled:opacity-35" aria-label="Étape suivante"><SkipForward size={14} /></button>
+              <button onClick={() => onLecture('restart')} className="btn-icone w-8 h-8 hidden sm:grid" aria-label="Revoir depuis le début"><RotateCcw size={14} /></button>
+              <button onClick={() => onLecture('stop')} className="btn-icone w-8 h-8" aria-label="Arrêter la lecture"><X size={14} /></button>
+            </div>
+          </div>
         </div>
       ) : (vue === '3d' || vue === '2d') && pret && (
         <button onClick={onVoyage3D} className="absolute bottom-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-sang hover:brightness-110 text-white text-[12px] font-bold pl-2.5 pr-3.5 py-1.5 inline-flex items-center gap-1.5 shadow-[0_4px_18px_rgba(224,65,78,.45)]">
@@ -288,13 +342,14 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
         </button>
       )}
 
+      {/* Tracés : ECG, et les pressions au besoin */}
+      {traces !== 'aucun' && avecTraces && (
+        <canvas ref={cvTraces} className={`absolute left-0 right-0 ${lecture ? 'bottom-[74px]' : 'bottom-10'} w-full ${traces === 'tout' ? 'h-[124px]' : 'h-[58px]'} pointer-events-none bg-gradient-to-b from-ink/30 to-ink/75`} />
+      )}
+
       {/* Signature discrète dans la scène */}
       <div className="absolute bottom-0.5 right-2 text-[9px] tracking-wide text-white/25 pointer-events-none select-none">Hémodyssée · Dr O. Sow</div>
 
-      {/* Aide */}
-      <div className="absolute bottom-3 right-3 text-[11px] text-dim pointer-events-none hidden lg:flex items-center gap-1.5">
-        {vue === '3d' ? <><Box size={12} /> Glisser pour tourner · molette pour zoomer · clic sur une zone</> : vue === 'vaisseau' ? null : <><Eye size={12} /> Cliquez sur une zone pour zoomer</>}
-      </div>
     </div>
   );
 }

@@ -25,6 +25,8 @@ export interface Coeur3D {
   setOpacite(a: number): void;
   /** Durée du déplacement de caméra, en secondes (visite guidée : plus long = plus fluide). */
   setDureeTween(d: number): void;
+  /** Bloque la rotation et le déplacement à la souris (pendant une animation guidée). */
+  setInteraction(rotation: boolean): void;
   focus(z: ZoneId | null): void;
   selection(z: ZoneId | null): void;
   setEtiquettes(on: boolean, noms: Partial<Record<ZoneId, string>>): void;
@@ -100,7 +102,7 @@ interface Paroi { ext: THREE.Mesh; extDos: THREE.Mesh; int: THREE.Mesh; intDos: 
 export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): Coeur3D {
   const leger = !!opt.leger;
   const renderer = new THREE.WebGLRenderer({ antialias: !leger, alpha: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, leger ? 1 : 1.75));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, leger ? 1.35 : 1.75));
   renderer.localClippingEnabled = true;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -812,6 +814,7 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     frame, maj, setCoupe, focus,
     setOpacite(a) { opacite = a; appliquerOpacite(); },
     setDureeTween(d) { dureeTween = d; },
+    setInteraction(rotation) { controls.enableRotate = rotation; controls.enablePan = rotation; },
     selection(z) { choisi = z; surbrillance(); appliquerOpacite(); },
     setEtiquettes(on, noms) {
       calque.innerHTML = ''; etiquettes = [];

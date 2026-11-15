@@ -18,6 +18,7 @@ export const NOMS_PHASES: Record<Phase, string> = {
 export interface Instant {
   phase: Phase;
   u: number; // position dans le cycle ventriculaire 0..1
+  uA: number; // position dans le cycle des oreillettes 0..1 (différent en BAV complet)
   contractionV: number; // 0 (relâché) → 1 (contraction maximale)
   contractionA: number; // contraction des oreillettes 0..1
   ouvertureAV: number; // valves mitrale et tricuspide 0..1
@@ -87,6 +88,6 @@ export class Horloge {
     else if (this.rythme === 'bav3') onde = ua < 0.08 ? (ua / 0.08) * 0.4 : -1;
     else onde = uv < 0.06 ? 0.4 + (uv / 0.06) * 0.6 : -1;
 
-    return { phase, u, contractionV: cV, contractionA: cA, ouvertureAV, ouvertureSig, b1, b2, onde, fibrillation: this.rythme === 'fa' };
+    return { phase, u, uA: ua, contractionV: cV, contractionA: cA, ouvertureAV, ouvertureSig, b1, b2, onde, fibrillation: this.rythme === 'fa' };
   }
 }

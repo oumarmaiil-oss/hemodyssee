@@ -1,6 +1,6 @@
 /** Panneaux latéraux : Explorer, Maladies, Traitements, Évolution. */
 import { useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, Ear, Info, Pill, Plus, Sparkles, Stethoscope, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, Ear, Info, Pill, Play, Plus, Sparkles, Stethoscope, X } from 'lucide-react';
 import type { ClasseId, Etat, Niveau, Terrain, Traitement } from '../core/types.ts';
 import { evoluer, type Scenario } from '../core/engine.ts';
 import { ausculter } from '../core/audio.ts';
@@ -33,6 +33,23 @@ export const VOYAGE: { z: ZoneId; etape: string }[] = [
   { z: 'reins', etape: 'Les reins le filtrent et règlent la tension' },
   { z: 'membres', etape: 'Les muscles prennent l\'oxygène, puis le sang repart vers le cœur' },
 ];
+
+/** Détails affichés pendant la visite guidée : [niveau Découvrir, niveaux Comprendre/Approfondir]. Valeurs de repos de l'adulte. */
+export const DETAILS_VISITE: Partial<Record<ZoneId, [string, string]>> = {
+  veinesCaves: ['Le sang est bleu : il a donné son oxygène aux organes.', 'Saturation veineuse en oxygène ≈ 70-75 % · pression 2 à 8 mmHg'],
+  od: ['Une chambre d\'attente à basse pression.', 'Pression moyenne 2 à 8 mmHg · contient le nœud sinusal, le chef d\'orchestre électrique'],
+  valveTri: ['La porte s\'ouvre quand le ventricule se relâche.', '3 valvules · ouverte en diastole · sa fermeture participe au 1er bruit (B1)'],
+  vd: ['Il pousse doucement : les poumons sont tout près.', 'Pression 15-30 / 2-8 mmHg · paroi 3 à 5 mm, en forme de croissant'],
+  valvePu: ['La porte de sortie vers les poumons.', 'Ouverte pendant l\'éjection · sa fermeture donne la composante P2 du 2e bruit'],
+  artPulm: ['Direction les poumons, pour se recharger en oxygène.', 'Pression 15-30 / 4-12 mmHg · dans les poumons, la saturation remonte à ≈ 98 %'],
+  veinesPulm: ['Le sang revient rouge, riche en oxygène.', 'Saturation ≈ 98 % · 4 veines s\'abouchent dans l\'oreillette gauche'],
+  og: ['La salle d\'attente du cœur gauche.', 'Pression moyenne 6 à 12 mmHg · son auricule est le lieu des caillots en FA'],
+  valveMi: ['La porte à deux battants du cœur gauche.', '2 valves · surface 4 à 6 cm² · sa fermeture donne la composante M1 du 1er bruit'],
+  vg: ['La pompe principale envoie le sang dans tout le corps.', 'Pression 100-140 / 3-12 mmHg · éjecte ≈ 70 ml par battement (FE ≥ 50 %)'],
+  valveAo: ['La porte s\'ouvre et le sang part vers le corps.', 'S\'ouvre quand la pression du VG dépasse celle de l\'aorte (≈ 80 mmHg) · fermeture = A2 du 2e bruit'],
+  aorte: ['La grande artère amortit chaque battement.', 'PA ≈ 120/80 mmHg · son élasticité (effet Windkessel) maintient le débit en diastole'],
+  coronaires: ['Le cœur se nourrit lui-même par ces petites artères.', 'Remplissage surtout en diastole · ≈ 5 % du débit cardiaque au repos'],
+};
 
 function Texte3({ textes, niveau }: { textes: Record<Niveau, string>; niveau: Niveau }) {
   const [plus, setPlus] = useState(false);
@@ -113,6 +130,12 @@ export function PanneauExplorer({ zone, niveau, vue, etat, actives, onZone, onTo
       </div>
       {pasDansVue && (
         <button onClick={() => onVue(vuePour(zone))} className="w-full carte p-2.5 text-sm text-accent font-semibold text-left">Cette zone se voit dans la vue {NOMS_VUES[vuePour(zone)]} : l'afficher →</button>
+      )}
+      {['coronaires', 'carotides', 'membres', 'aorte'].includes(zone) && vue !== 'vaisseau' && (
+        <button onClick={() => onVue('vaisseau')} className="w-full carte p-2.5 text-[13px] text-left"><span className="text-accent font-semibold">Voir la paroi de l'artère en coupe →</span> <span className="text-muted">plaque, rétrécissement, durcissement (vue Vaisseau)</span></button>
+      )}
+      {(zone === 'noeudSinusal' || zone === 'noeudAV') && (
+        <p className="text-[12.5px] text-muted carte p-2.5">L'<b className="text-txt">ECG</b> s'affiche sous la scène : chaque onde correspond à une étape électrique (P : oreillettes, QRS : ventricules, T : récupération).</p>
       )}
       <div className="carte p-3.5">
         <div className="titre-section mb-1.5">Comment ça marche</div>
@@ -195,6 +218,7 @@ export function PanneauMaladies(props: {
   etat: Etat; etatSans: Etat; labo: boolean;
   onFocus: (id: string | null) => void; onToggle: (id: string) => void; onSeverite: (id: string, s: number) => void;
   onScenario: (a: PathoActive[]) => void; onDose: (c: ClasseId, d: number) => void; onRemplacer: (t: Traitement) => void;
+  onSequence: () => void; onComparer: () => void;
 }) {
   const { niveau, vue, zone, actives, focus, onFocus, onToggle, onSeverite, onScenario } = props;
   const f = focus ? PATHO_PAR_ID[focus] : null;
@@ -271,9 +295,9 @@ export function PanneauMaladies(props: {
 
 // ─────────────────────────── Traitement intégré à la fiche ───────────────────────────
 
-function BlocTraitement({ patho, niveau, actives, etat, etatSans, traitement, labo, onDose, onRemplacer }: {
+function BlocTraitement({ patho, niveau, actives, etat, etatSans, traitement, labo, onDose, onRemplacer, onSequence, onComparer }: {
   patho: Pathologie; niveau: Niveau; actives: PathoActive[]; etat: Etat; etatSans: Etat; traitement: Traitement; labo: boolean;
-  onDose: (c: ClasseId, d: number) => void; onRemplacer: (t: Traitement) => void;
+  onDose: (c: ClasseId, d: number) => void; onRemplacer: (t: Traitement) => void; onSequence: () => void; onComparer: () => void;
 }) {
   const [ouverte, setOuverte] = useState<ClasseId | null>(null);
   const [autres, setAutres] = useState(false);
@@ -325,13 +349,17 @@ function BlocTraitement({ patho, niveau, actives, etat, etatSans, traitement, la
       {proposees.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
           {proposees.map((c) => <span key={c} className={`puce trt ${traitement[c] ? 'actif' : ''}`}>{CLASSE_PAR_ID[c].court}{propose[c] !== 1 ? ` ${propose[c] === 0.5 ? '½' : '×2'}` : ''}</span>)}
-          <button onClick={() => onRemplacer({ ...traitement, ...propose })} className="ml-auto rounded-lg bg-ok text-ink font-bold text-[13px] px-3 py-1.5 inline-flex items-center gap-1.5"><Pill size={14} /> Appliquer le traitement proposé</button>
+          <button onClick={() => { onRemplacer({ ...traitement, ...propose }); if (simulee) setTimeout(onSequence, 50); }} className="ml-auto rounded-lg bg-ok text-ink font-bold text-[13px] px-3 py-1.5 inline-flex items-center gap-1.5"><Pill size={14} /> Appliquer le traitement proposé</button>
         </div>
       )}
       {simulee && actif && (
         <>
           <div className="titre-section">Résultat (écart par rapport à sans traitement)</div>
           <Moniteur e={etat} niveau={Math.min(niveau, 2) as Niveau} ref0={etatSans} compact />
+          <div className="grid grid-cols-2 gap-1.5">
+            <button onClick={onSequence} className="rounded-lg bg-card2 border border-line py-2 text-[12.5px] font-semibold inline-flex items-center justify-center gap-1.5"><Play size={13} fill="currentColor" /> Effet dans le temps</button>
+            <button onClick={onComparer} className="rounded-lg bg-card2 border border-line py-2 text-[12.5px] font-semibold">Comparer sans / avec</button>
+          </div>
         </>
       )}
       {points.length > 0 && (
