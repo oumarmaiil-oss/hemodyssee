@@ -50,7 +50,18 @@ export default function App() {
   }, [vueEvo, etatAuj, terrain, traitement]);
 
   const choisirNiveau = (n: Niveau) => { setNiveau(n); ecrire('hemo.niveau', String(n)); setAccueil(false); };
+  // Quand une maladie est ajoutée, la scène va directement sur la zone atteinte.
+  const ZONE_LESION: Record<string, ZoneId> = { hta: 'aorte', htaSys: 'aorte', dyslip: 'coronaires', athero: 'carotides', aomi: 'membres', angor: 'coronaires', idm: 'coronaires', hvg: 'vg', icfer: 'vg', icfep: 'vg', oap: 'poumons', ra: 'valveAo', ia: 'valveAo', rm: 'valveMi', im: 'valveMi', it: 'valveTri', fa: 'og', bav: 'noeudAV', avc: 'cerveau', irc: 'reins', diabete: 'reins' };
   const togglePatho = (id: string) => {
+    if (!actives.some((x) => x.id === id)) {
+      const z = ZONE_LESION[id];
+      if (z) {
+        setZone(z);
+        // Organes hors du cœur : on passe dans la vue où ils se voient.
+        if (vue === '3d' && ['poumons', 'cerveau', 'reins', 'membres'].includes(z)) setVue('corps');
+        if (vue === 'vaisseau' && !['coronaires', 'carotides', 'membres', 'aorte', 'reins', 'cerveau'].includes(z)) setVue('3d');
+      }
+    }
     setActives((a) => {
       if (a.some((x) => x.id === id)) return a.filter((x) => x.id !== id);
       // Un seul trouble du rythme à la fois.
@@ -86,20 +97,29 @@ export default function App() {
               <div className="text-[10.5px] text-dim hidden md:block">Le voyage du sang, du cœur aux organes</div>
             </div>
           </div>
-          <div className="seg ml-auto hidden sm:inline-flex" role="group" aria-label="Niveau">
+          <div className="seg ml-auto hidden lg:inline-flex" role="group" aria-label="Niveau">
             {NIVEAUX.map((x) => <button key={x.n} className={niveau === x.n ? 'actif' : ''} onClick={() => choisirNiveau(x.n)}>{x.nom}</button>)}
           </div>
-          <div className="seg ml-auto sm:ml-0" role="group" aria-label="Vue">
-            <button className={vue === '3d' ? 'actif' : ''} onClick={() => setVue('3d')}><Box size={14} className="inline -mt-0.5" /> 3D</button>
-            <button className={vue === '2d' ? 'actif' : ''} onClick={() => setVue('2d')}><span className="hidden md:inline">Voyage </span>2D</button>
+
+          <div className="seg hidden lg:inline-flex" role="group" aria-label="Vue">
+            <button className={vue === '3d' ? 'actif' : ''} onClick={() => setVue('3d')}><Box size={14} className="inline -mt-0.5 hidden md:inline" /> 3D</button>
+            <button className={vue === '2d' ? 'actif' : ''} onClick={() => setVue('2d')}>Voyage</button>
+            <button className={vue === 'corps' ? 'actif' : ''} onClick={() => setVue('corps')}>Corps</button>
+            <button className={vue === 'vaisseau' ? 'actif' : ''} onClick={() => setVue('vaisseau')}>Vaisseau</button>
           </div>
-          <button onClick={basculerSon} className={`btn-icone ${sonOn ? 'actif' : ''}`} title="Bruits du cœur" aria-label="Activer les bruits du cœur">{sonOn ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
+          <button onClick={basculerSon} className={`btn-icone ml-auto lg:ml-0 ${sonOn ? 'actif' : ''}`} title="Bruits du cœur" aria-label="Activer les bruits du cœur">{sonOn ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
           <button onClick={() => setRalenti((v) => !v)} className={`btn-icone hidden sm:grid ${ralenti ? 'actif' : ''}`} title="Ralenti" aria-label="Ralenti"><Snail size={16} /></button>
           <button onClick={() => setLabo((v) => !v)} className={`btn-icone ${labo ? 'actif' : ''}`} title="Mode labo (gamme commerciale)" aria-label="Mode labo"><Briefcase size={16} /></button>
           <button onClick={() => setApropos(true)} className="btn-icone" title="À propos" aria-label="À propos"><Info size={16} /></button>
         </div>
-        <div className="sm:hidden px-3 pb-2">
+        <div className="lg:hidden px-3 pb-2 grid sm:grid-cols-2 gap-2">
           <div className="seg w-full justify-between">{NIVEAUX.map((x) => <button key={x.n} className={`flex-1 ${niveau === x.n ? 'actif' : ''}`} onClick={() => choisirNiveau(x.n)}>{x.nom}</button>)}</div>
+          <div className="seg w-full justify-between [&>button]:flex-1" role="group" aria-label="Vue">
+            <button className={vue === '3d' ? 'actif' : ''} onClick={() => setVue('3d')}><Box size={14} className="inline -mt-0.5 hidden md:inline" /> 3D</button>
+            <button className={vue === '2d' ? 'actif' : ''} onClick={() => setVue('2d')}>Voyage</button>
+            <button className={vue === 'corps' ? 'actif' : ''} onClick={() => setVue('corps')}>Corps</button>
+            <button className={vue === 'vaisseau' ? 'actif' : ''} onClick={() => setVue('vaisseau')}>Vaisseau</button>
+          </div>
         </div>
       </header>
 

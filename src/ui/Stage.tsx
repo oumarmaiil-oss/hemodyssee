@@ -7,8 +7,13 @@ import type { Etat, Niveau } from '../core/types.ts';
 import { ZONES, type ZoneId } from '../content/zones.ts';
 import type { Coeur3D, Coupe } from '../render/heart3d.ts';
 import { creerCircuit2D, type Circuit2D } from '../render/circuit2d.ts';
+import { creerCorps2D, type Corps2D } from '../render/corps2d.ts';
+import { creerVaisseau2D, SITES, type Site, type Vaisseau2D } from '../render/vaisseau2d.ts';
 
-export type Vue = '3d' | '2d';
+type Rendu = Coeur3D | Circuit2D | Corps2D | Vaisseau2D;
+const SITE_DE_ZONE: Partial<Record<ZoneId, Site>> = { coronaires: 'coronaire', carotides: 'carotide', cerveau: 'carotide', membres: 'jambe', aorte: 'aorte', reins: 'arteriole', vg: 'coronaire' };
+
+export type Vue = '3d' | '2d' | 'corps' | 'vaisseau';
 
 const ZONES_3D: ZoneId[] = ['od', 'vd', 'og', 'vg', 'valveTri', 'valvePu', 'valveMi', 'valveAo', 'noeudSinusal', 'noeudAV', 'aorte', 'artPulm', 'veinesCaves', 'veinesPulm', 'coronaires', 'carotides'];
 export const zoneEn3D = (z: ZoneId) => ZONES_3D.includes(z);
@@ -27,7 +32,8 @@ interface Props {
 
 export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti }: Props) {
   const hote = useRef<HTMLDivElement>(null);
-  const rendu = useRef<Coeur3D | Circuit2D | null>(null);
+  const rendu = useRef<Rendu | null>(null);
+  const [site, setSite] = useState<Site>('coronaire');
   const horloge = useRef(new Horloge());
   const etatRef = useRef(etat);
   const phaseRef = useRef<HTMLSpanElement>(null);
@@ -53,13 +59,15 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti }: Props) 
     let annule = false;
     setPret(false);
     const opts = { onPick: (z: ZoneId | null) => onZoneRef.current(z), onHover: setSurvol, leger };
-    const monter = (r: Coeur3D | Circuit2D) => {
+    const monter = (r: Rendu) => {
       if (annule) { r.dispose(); return; }
       rendu.current = r; r.maj(etatRef.current); setPret(true);
     };
     if (vue === '3d') {
       import('../render/heart3d.ts').then((m) => monter(m.creerCoeur3D(el, opts))).catch(() => setErreur3D(true));
-    } else monter(creerCircuit2D(el, opts));
+    } else if (vue === 'corps') monter(creerCorps2D(el, opts));
+    else if (vue === 'vaisseau') monter(creerVaisseau2D(el, opts));
+    else monter(creerCircuit2D(el, opts));
     return () => { annule = true; rendu.current?.dispose(); rendu.current = null; };
   }, [vue]);
 
@@ -96,12 +104,14 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti }: Props) 
   // Zoom automatique : coupe frontale quand on entre dans une structure interne en 3D.
   useEffect(() => {
     if (vue !== '3d' || !zone) return;
-    if (['od', 'vd', 'og', 'vg', 'valveTri', 'valvePu', 'valveMi', 'valveAo', 'noeudAV'].includes(zone)) {
-      const POS: Partial<Record<ZoneId, number>> = { od: 0, vd: 0.55, og: -0.6, vg: 0.05, valveTri: 0.2, valvePu: 0.5, valveMi: -0.42, valveAo: -0.12, noeudAV: 0.12 };
-      setCoupe('frontale');
-      setCoupePos(POS[zone] ?? 0);
-    }
+    // Cavités : coupe frontale. Valves et nœuds : pas de coupe, les parois autour deviennent transparentes.
+    const POS: Partial<Record<ZoneId, number>> = { od: 0, vd: 0.55, og: -0.6, vg: 0.05 };
+    if (POS[zone] !== undefined) { setCoupe('frontale'); setCoupePos(POS[zone]!); }
+    else setCoupe('aucune');
   }, [zone, vue]);
+
+  useEffect(() => { if (zone && SITE_DE_ZONE[zone]) setSite(SITE_DE_ZONE[zone]!); }, [zone]);
+  useEffect(() => { if (pret && vue === 'vaisseau') (rendu.current as Vaisseau2D).setSite(site); }, [site, pret, vue]);
 
   const nomSurvol = survol ? ZONES[survol].nom : null;
 
@@ -146,9 +156,15 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti }: Props) 
         )}
       </div>
 
+      {vue === 'vaisseau' && pret && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 seg flex-wrap justify-center max-w-[95%]">
+          {SITES.map((x) => <button key={x.id} className={site === x.id ? 'actif' : ''} onClick={() => setSite(x.id)}>{x.nom}</button>)}
+        </div>
+      )}
+
       {/* Aide */}
-      <div className="absolute bottom-3 right-3 text-[11px] text-dim pointer-events-none hidden sm:flex items-center gap-1.5">
-        {vue === '3d' ? <><Box size={12} /> Glisser pour tourner · molette pour zoomer · clic sur une zone</> : <><Eye size={12} /> Cliquez sur un organe ou une valve pour zoomer</>}
+      <div className="absolute bottom-3 right-3 text-[11px] text-dim pointer-events-none hidden lg:flex items-center gap-1.5">
+        {vue === '3d' ? <><Box size={12} /> Glisser pour tourner · molette pour zoomer · clic sur une zone</> : vue === 'vaisseau' ? null : <><Eye size={12} /> Cliquez sur une zone pour zoomer</>}
       </div>
     </div>
   );

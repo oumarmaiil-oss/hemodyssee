@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { Instant } from '../core/clock.ts';
 import type { Etat } from '../core/types.ts';
 import type { ZoneId } from '../content/zones.ts';
@@ -100,6 +101,8 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, leger ? 1 : 1.75));
   renderer.localClippingEnabled = true;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.95;
   conteneur.appendChild(renderer.domElement);
   renderer.domElement.style.display = 'block';
   renderer.domElement.style.touchAction = 'none';
@@ -112,8 +115,13 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   const CIBLE0 = V(0.1, 0.45, -0.1), CAM0 = V(0.9, 0.9, 8.2);
   camera.position.copy(CAM0); controls.target.copy(CIBLE0);
 
-  scene.add(new THREE.HemisphereLight(0xfff1ee, 0x2a1a2a, 1.1));
-  const key = new THREE.DirectionalLight(0xffffff, 2.1); key.position.set(3, 5, 6); scene.add(key);
+  // Environnement de studio : reflets doux et réalistes sur les surfaces humides.
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environment = envTex;
+  scene.environmentIntensity = 0.32;
+  scene.add(new THREE.HemisphereLight(0xfff1ee, 0x1a0e18, 0.45));
+  const key = new THREE.DirectionalLight(0xfff4ee, 2.3); key.position.set(3, 5, 6); scene.add(key);
   const rim = new THREE.DirectionalLight(0x88aaff, 1.0); rim.position.set(-5, 2, -4); scene.add(rim);
   const fill = new THREE.PointLight(0xff8888, 0.8, 20); fill.position.set(-2, -2, 4); scene.add(fill);
 
@@ -129,8 +137,11 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   const vaisseaux: THREE.MeshStandardMaterial[] = [];
   const pickables: THREE.Object3D[] = [];
   const reg = (z: ZoneId, m: THREE.MeshStandardMaterial) => { if (!matsZone.has(z)) matsZone.set(z, []); matsZone.get(z)!.push(m); };
-  const mat = (o: THREE.MeshStandardMaterialParameters, z?: ZoneId, clip = true) => {
-    const m = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.02, ...o });
+  const mat = (o: THREE.MeshPhysicalMaterialParameters, z?: ZoneId, clip = true) => {
+    const m: THREE.MeshStandardMaterial = leger
+      ? new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.02, ...o })
+      : new THREE.MeshPhysicalMaterial({ roughness: 0.5, metalness: 0.0, clearcoat: 0.6, clearcoatRoughness: 0.28, sheen: 0.12, sheenRoughness: 0.7, sheenColor: new THREE.Color(0x802030), ...o });
+    m.userData.zone = z;
     if (z) reg(z, m);
     if (clip) clippables.push(m);
     return m;
@@ -140,9 +151,9 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
 
   function paroi(z: ZoneId, coulExt: number, geoExt: THREE.BufferGeometry, geoInt: THREE.BufferGeometry, vertexColors = false): Paroi {
     const ext = mat({ color: coulExt, bumpMap: fibres, bumpScale: 0.6, vertexColors }, z);
-    const extDos = mat({ color: 0x6e1a22, side: THREE.BackSide, roughness: 0.8 }, z);
-    const intFace = mat({ color: 0x7a1f28, roughness: 0.8, vertexColors }, z);
-    const intDos = mat({ color: 0xe2a2a0, side: THREE.BackSide, roughness: 0.45, vertexColors }, z);
+    const extDos = mat({ color: 0x7c222b, side: THREE.BackSide, roughness: 0.7, clearcoat: 0.2, bumpMap: fibres, bumpScale: 0.5 }, z);
+    const intFace = mat({ color: 0x86262f, roughness: 0.7, clearcoat: 0.2, bumpMap: fibres, bumpScale: 0.5, vertexColors }, z);
+    const intDos = mat({ color: 0xd98f90, side: THREE.BackSide, roughness: 0.32, clearcoat: 0.9, clearcoatRoughness: 0.18, bumpMap: fibres, bumpScale: 0.35, vertexColors }, z);
     parois.push(ext, extDos, intFace, intDos);
     const g = new THREE.Group();
     const m1 = new THREE.Mesh(geoExt, ext), m2 = new THREE.Mesh(geoExt, extDos), m3 = new THREE.Mesh(geoInt, intFace), m4 = new THREE.Mesh(geoInt, intDos);
@@ -155,7 +166,7 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   // Ventricule gauche (déformable : contraction, zone d'infarctus akinétique).
   let vgR = 0.86, vgL = 2.05;
   const vgGeo = { ext: new THREE.BufferGeometry(), int: new THREE.BufferGeometry() };
-  const vg = paroi('vg', 0xa7313a, vgGeo.ext, vgGeo.int, true);
+  const vg = paroi('vg', 0x8a1f2b, vgGeo.ext, vgGeo.int, true);
   vg.group.position.copy(P.vgBase);
   vg.group.quaternion.setFromUnitVectors(V(0, -1, 0), P.vgDir);
   let vgBaseExt = new Float32Array(0), vgBaseInt = new Float32Array(0), vgNecExt = new Float32Array(0), vgNecInt = new Float32Array(0);
@@ -193,16 +204,16 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   // Ventricule droit (aplati, paroi fine).
   const vdExt = new THREE.LatheGeometry(profilVentricule(0.82, 1.6), leger ? 24 : 36);
   const vdInt = new THREE.LatheGeometry(profilVentricule(0.74, 1.5), leger ? 24 : 36);
-  const vd = paroi('vd', 0xa83a42, vdExt, vdInt);
+  const vd = paroi('vd', 0x8f2530, vdExt, vdInt);
   vd.group.position.copy(P.vdBase);
   vd.group.quaternion.setFromUnitVectors(V(0, -1, 0), P.vdDir);
   vd.group.scale.set(1, 1, 0.58);
 
   // Oreillettes.
   const sph = (r: number) => new THREE.SphereGeometry(r, leger ? 22 : 32, leger ? 16 : 24);
-  const od = paroi('od', 0xb04848, sph(0.52), sph(0.46));
+  const od = paroi('od', 0x93303a, sph(0.52), sph(0.46));
   od.group.position.copy(P.od);
-  const og = paroi('og', 0xb04848, sph(0.55), sph(0.485));
+  const og = paroi('og', 0x93303a, sph(0.55), sph(0.485));
   og.group.position.copy(P.og);
   const auricule = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 12), og.ext.material as THREE.Material);
   auricule.scale.set(1.3, 0.8, 0.9); auricule.position.copy(P.auricule).sub(P.og); auricule.userData.zone = 'og';
@@ -213,7 +224,8 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   // ── Vaisseaux ──
   function tube(z: ZoneId, pts: THREE.Vector3[], r: number, couleur: number, opacite = 0.55): { mesh: THREE.Mesh; courbe: THREE.CatmullRomCurve3; mat: THREE.MeshStandardMaterial } {
     const courbe = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
-    const m = mat({ color: couleur, transparent: true, opacity: opacite, depthWrite: false, roughness: 0.35, side: THREE.DoubleSide }, z);
+    const m = mat({ color: couleur, transparent: true, opacity: opacite, depthWrite: false, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.12, side: THREE.DoubleSide }, z);
+    m.userData.opacite = opacite;
     vaisseaux.push(m);
     const mesh = new THREE.Mesh(new THREE.TubeGeometry(courbe, leger ? 48 : 80, r, leger ? 12 : 18, false), m);
     mesh.userData.zone = z; mesh.renderOrder = 2;
@@ -380,11 +392,13 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   const ptsIVA = surPoser([V(0.2, 0.62, 0), V(0.25, 0.4, 0), V(0.3, 0.0, 0), V(0.42, -0.45, 0), V(0.58, -0.9, 0), V(0.78, -1.3, 0)], V(0, 0, -1));
   const ptsCD = surPoser([V(0.05, 0.6, 0), V(-0.3, 0.42, 0), V(-0.62, 0.22, 0), V(-0.86, -0.05, 0), V(-0.92, -0.4, 0)], V(0.15, 0, -1));
   const ptsCx = surPoser([V(0.3, 0.55, 0), V(0.7, 0.45, 0), V(1.0, 0.25, 0), V(1.2, -0.05, 0)], V(-0.25, 0, -1));
-  const mCoro = mat({ color: 0xe0505a, roughness: 0.35, emissive: 0x220000 }, 'coronaires');
+  const mCoro = mat({ color: 0xc8343f, roughness: 0.3, emissive: 0x220000 }, 'coronaires');
   const courbeIVA = new THREE.CatmullRomCurve3(ptsIVA);
+  let meshIVA!: THREE.Mesh;
   for (const pts of [ptsIVA, ptsCD, ptsCx]) {
-    const c = new THREE.CatmullRomCurve3(pts);
+    const c = pts === ptsIVA ? courbeIVA : new THREE.CatmullRomCurve3(pts);
     const m = new THREE.Mesh(new THREE.TubeGeometry(c, 60, 0.035, 8, false), mCoro); m.userData.zone = 'coronaires'; coeur.add(m);
+    if (pts === ptsIVA) meshIVA = m;
     const hit = new THREE.Mesh(new THREE.TubeGeometry(c, 30, 0.12, 6, false), new THREE.MeshBasicMaterial({ visible: false })); hit.userData.zone = 'coronaires'; coeur.add(hit); pickables.push(hit);
   }
   const plaque = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 10), mat({ color: 0xf2c94c, roughness: 0.8 }, 'coronaires'));
@@ -395,6 +409,46 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   const coro = systemePoints(NC, 0.06);
   const pc = Array.from({ length: NC }, () => Math.random());
   { const col = coro.geometry.attributes.color.array as Float32Array; for (let i = 0; i < NC; i++) { col[i * 3] = 1; col[i * 3 + 1] = 0.35; col[i * 3 + 2] = 0.4; } }
+
+  // ── Rétrécissement visible des artères (déformation du tube) ──
+  interface Tube { mesh: THREE.Mesh; courbe: THREE.CatmullRomCurve3; base: Float32Array; tub: number; rad: number }
+  function tubeDeformable(mesh: THREE.Mesh, courbe: THREE.CatmullRomCurve3, tub: number, rad: number): Tube {
+    return { mesh, courbe, base: new Float32Array(mesh.geometry.attributes.position.array as Float32Array), tub, rad };
+  }
+  function retrecir(t: Tube, t0: number, largeur: number, f: number) {
+    const pos = t.mesh.geometry.attributes.position.array as Float32Array;
+    const c = V(0, 0, 0);
+    for (let i = 0; i <= t.tub; i++) {
+      const u = i / t.tub;
+      const k = 1 - f * Math.exp(-(((u - t0) / largeur) ** 2));
+      t.courbe.getPointAt(u, c);
+      for (let j = 0; j <= t.rad; j++) {
+        const n = (i * (t.rad + 1) + j) * 3;
+        pos[n] = c.x + (t.base[n] - c.x) * k; pos[n + 1] = c.y + (t.base[n + 1] - c.y) * k; pos[n + 2] = c.z + (t.base[n + 2] - c.z) * k;
+      }
+    }
+    t.mesh.geometry.attributes.position.needsUpdate = true;
+  }
+  const tubesCarotides = carotides.slice(0, 2).map((c) => tubeDeformable(c.mesh, c.courbe, leger ? 48 : 80, leger ? 12 : 18));
+  const plaquesCarotides = carotides.slice(0, 2).map((c) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), mat({ color: 0xf2c94c, roughness: 0.75 }, 'carotides'));
+    m.position.copy(c.courbe.getPointAt(0.42)); m.visible = false; coeur.add(m); return m;
+  });
+  const tubeIVA = tubeDeformable(meshIVA, courbeIVA, 60, 8);
+
+  // ── Halos qui signalent les lésions, visibles même à travers les parois ──
+  const texHalo = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g2 = c.getContext('2d')!;
+    g2.strokeStyle = 'rgba(255,255,255,1)'; g2.lineWidth = 9; g2.beginPath(); g2.arc(64, 64, 48, 0, Math.PI * 2); g2.stroke();
+    g2.lineWidth = 3; g2.globalAlpha = 0.6; g2.beginPath(); g2.arc(64, 64, 58, 0, Math.PI * 2); g2.stroke();
+    return new THREE.CanvasTexture(c);
+  })();
+  const halos: THREE.Sprite[] = Array.from({ length: 8 }, () => {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, color: 0xffc04a, transparent: true, depthTest: false, depthWrite: false }));
+    sp.visible = false; sp.renderOrder = 10; coeur.add(sp); return sp;
+  });
+  let lesionsActives: { p: THREE.Vector3; r: number; c: number }[] = [];
 
   // ── Étiquettes HTML ──
   const calque = document.createElement('div');
@@ -408,9 +462,20 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   let survol: ZoneId | null = null, choisi: ZoneId | null = null;
   let anim: { t: number; dePos: THREE.Vector3; deCible: THREE.Vector3; aPos: THREE.Vector3; aCible: THREE.Vector3 } | null = null;
 
+  /** Opacité des parois ; en mode zoom, les structures autour de la zone choisie deviennent « fantômes ». */
   function appliquerOpacite() {
-    const a = opacite;
-    for (const m of parois) { m.transparent = a < 0.999; m.opacity = a; m.depthWrite = a >= 0.999; m.needsUpdate = true; }
+    const fantome = choisi && ANCRES[choisi] && !['aorte', 'veinesCaves', 'veinesPulm', 'artPulm', 'carotides'].includes(choisi);
+    for (const m of parois) {
+      const z = m.userData.zone as ZoneId;
+      const cible = fantome && z !== choisi ? Math.min(opacite, (choisi === 'coronaires' ? 0.85 : 0.16)) : opacite;
+      const tr = cible < 0.999;
+      if (m.transparent !== tr) m.needsUpdate = true;
+      m.transparent = tr; m.opacity = cible; m.depthWrite = !tr;
+    }
+    for (const m of vaisseaux) {
+      const z = m.userData.zone as ZoneId;
+      m.opacity = fantome ? 0.12 : z === choisi ? 0.8 : (m.userData.opacite as number);
+    }
   }
   function surbrillance() {
     for (const [z, ms] of matsZone) {
@@ -621,6 +686,17 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     }
     coro.geometry.attributes.position.needsUpdate = true;
 
+    // Halos de lésion (pulsation).
+    halos.forEach((h, k) => {
+      const l = lesionsActives[k];
+      h.visible = !!l;
+      if (!l) return;
+      const pul = 1 + 0.18 * Math.sin(temps * 4 + k);
+      h.position.copy(l.p); h.scale.setScalar(l.r * pul);
+      (h.material as THREE.SpriteMaterial).color.setHex(l.c);
+      (h.material as THREE.SpriteMaterial).opacity = 0.55 + 0.35 * Math.sin(temps * 4 + k) ** 2;
+    });
+
     // Étiquettes.
     if (etiquettes.length) {
       const w = conteneur.clientWidth, h = conteneur.clientHeight;
@@ -648,8 +724,22 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     plaque.visible = t.plaqueCoro > 0.08;
     plaque.scale.setScalar(0.6 + 1.6 * t.plaqueCoro);
     caillot.visible = t.occlusion > 0.3 || (t.ischemie > 0.2 && t.plaqueCoro > 0.85);
-    const cp = new THREE.Color(0xd2484e).lerp(new THREE.Color(0xe8c070), t.plaqueCarotide * 0.8);
+    const cp = new THREE.Color(0xd2484e).lerp(new THREE.Color(0xe8c070), t.plaqueCarotide * 0.6);
     carotides.forEach((c, k) => { if (k < 2) c.mat.color.copy(cp); });
+    tubesCarotides.forEach((tb, k) => retrecir(tb, 0.42, 0.12, 0.75 * t.plaqueCarotide * (k === 0 ? 1 : 0.7)));
+    plaquesCarotides.forEach((m, k) => { m.visible = t.plaqueCarotide > 0.15; m.scale.setScalar(0.8 + 1.4 * t.plaqueCarotide * (k === 0 ? 1 : 0.7)); });
+    retrecir(tubeIVA, 0.3, 0.06, 0.8 * t.plaqueCoro);
+    const L: { p: THREE.Vector3; r: number; c: number }[] = [];
+    const ORANGE = 0xffb03a, ROUGE = 0xff4d5e, JAUNE = 0xffe066;
+    if (t.ra > 0.25 || t.ia > 0.25) L.push({ p: P.ao, r: 0.75, c: ORANGE });
+    if (t.rm > 0.25 || t.im > 0.25) L.push({ p: P.mi, r: 0.85, c: ORANGE });
+    if (t.it > 0.25) L.push({ p: P.tri, r: 0.85, c: ORANGE });
+    if (t.plaqueCoro > 0.15) L.push({ p: courbeIVA.getPointAt(0.3), r: 0.45, c: t.plaqueCoro > 0.85 ? ROUGE : JAUNE });
+    if (t.plaqueCarotide > 0.15) L.push({ p: carotides[0].courbe.getPointAt(0.42), r: 0.45, c: JAUNE });
+    if (e.thrombusOG) L.push({ p: P.auricule, r: 0.5, c: ROUGE });
+    if (t.ischemie > 0.1) L.push({ p: V(0.62, -0.75, 0.55), r: 0.9, c: ROUGE });
+    if (t.rythme === 'bav3') L.push({ p: P.av, r: 0.5, c: ROUGE });
+    lesionsActives = L.slice(0, halos.length);
   }
 
   function setCoupe(c: Coupe, pos: number) {
@@ -673,7 +763,7 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   return {
     frame, maj, setCoupe, focus,
     setOpacite(a) { opacite = a; appliquerOpacite(); },
-    selection(z) { choisi = z; surbrillance(); },
+    selection(z) { choisi = z; surbrillance(); appliquerOpacite(); },
     setEtiquettes(on, noms) {
       calque.innerHTML = ''; etiquettes = [];
       if (!on) return;
@@ -693,6 +783,7 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
       renderer.domElement.removeEventListener('pointerup', onUp);
       controls.dispose();
       scene.traverse((o) => { const m = o as THREE.Mesh; if (m.geometry) m.geometry.dispose(); });
+      envTex.dispose(); pmrem.dispose();
       renderer.dispose();
       renderer.domElement.remove(); calque.remove();
     },
