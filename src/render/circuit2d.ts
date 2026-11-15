@@ -83,7 +83,9 @@ export interface Circuit2D {
   dispose(): void;
 }
 
-export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId | null) => void; onHover?: (z: ZoneId | null) => void; leger?: boolean } = {}): Circuit2D {
+export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId | null) => void; onHover?: (z: ZoneId | null) => void; leger?: boolean; coeur?: boolean } = {}): Circuit2D {
+  // Mode « cœur en 2D » : même schéma, cadré sur le cœur.
+  const VUE0 = opt.coeur ? { s: 2.15, cx: 505, cy: 440 } : { s: 1, cx: W / 2, cy: H / 2 };
   const cv = document.createElement('canvas');
   cv.style.cssText = 'display:block;width:100%;height:100%;touch-action:manipulation';
   conteneur.appendChild(cv);
@@ -113,7 +115,7 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
   let etat: Etat | null = null;
   let choisi: ZoneId | null = null, survol: ZoneId | null = null;
   let labels = false, noms: Partial<Record<ZoneId, string>> = {};
-  const vue = { s: 1, cx: W / 2, cy: H / 2 };
+  const vue = { ...VUE0 };
   let anim: { t: number; de: typeof vue; a: typeof vue } | null = null;
   let temps = 0;
 
@@ -342,6 +344,29 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
       if (em.arret > 0) texte('Caillot → AVC', x, y - 18, 12.5 / Math.sqrt(vue.s), '#ffb3bd');
     }
 
+    // Étiquettes des atteintes (toujours visibles).
+    if (t && e) {
+      const tags: [string, number, number, string][] = [];
+      const valve = (st: number, fu: number) => (st > 0.25 && fu > 0.25 ? 'Rétrécie et fuit' : st > 0.25 ? 'Valve rétrécie' : 'Valve qui fuit');
+      if (t.ra > 0.25 || t.ia > 0.25) tags.push([valve(t.ra, t.ia), 560, 372, '#ffb03a']);
+      if (t.rm > 0.25 || t.im > 0.25) tags.push([valve(t.rm, t.im), 640, 398, '#ffb03a']);
+      if (t.it > 0.25) tags.push(['Valve qui fuit', 360, 398, '#ffb03a']);
+      if (t.ischemie > 0.1) tags.push(['Nécrose', 610, 525, '#ff6b78']);
+      else if (e.fe < 0.42) tags.push(['Contraction faible', 610, 525, '#8fb8ff']);
+      if (t.hvg > 0.35) tags.push(['Paroi épaissie', 580, 588, '#c9a7ff']);
+      if (e.postcharge > 1.25) tags.push(['Post-charge ↑', 700, 245, '#ffb03a']);
+      if (t.rythme === 'bav3') tags.push(['Bloc : rythme lent', 498, 432, '#ff6b78']);
+      if (t.rythme === 'fa') tags.push(['Fibrillation', 500, 300, '#ffe066']);
+      if (e.perfusion.poumons < 0.8) tags.push(['Poumons noyés', 500, 250, '#8fb8ff']);
+      const k = 11.5 / Math.sqrt(vue.s);
+      for (const [tx, x, y, c] of tags) {
+        g.font = `700 ${k}px "Plus Jakarta Sans", system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle';
+        const w = g.measureText(tx).width;
+        g.fillStyle = c; g.beginPath(); g.roundRect(x - w / 2 - 6, y - k * 0.8, w + 12, k * 1.6, 8); g.fill();
+        g.fillStyle = '#1a0d06'; g.fillText(tx, x, y);
+      }
+    }
+
     // Étiquettes et surbrillance.
     for (const r of REGIONS) {
       if (r.z === choisi || r.z === survol) {
@@ -424,7 +449,7 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
     maj(e) { etat = e; },
     focus(z) {
       const r = z ? REGIONS.find((x) => x.z === z) : null;
-      const a = r ? { s: clamp(Math.min(W / (r.w + 280), H / (r.h + 260)), 1, 2.4), cx: r.x + r.w / 2, cy: r.y + r.h / 2 } : { s: 1, cx: W / 2, cy: H / 2 };
+      const a = r ? { s: clamp(Math.min(W / (r.w + 280), H / (r.h + 260)), opt.coeur ? 2.15 : 1, opt.coeur ? 3.4 : 2.4), cx: r.x + r.w / 2, cy: r.y + r.h / 2 } : { ...VUE0 };
       anim = { t: 0, de: { ...vue }, a };
     },
     selection(z) { choisi = z; },

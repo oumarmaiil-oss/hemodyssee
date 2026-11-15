@@ -8,11 +8,13 @@ import type { ClasseId, Niveau, Traitement } from '../core/types.ts';
 import type { ZoneId } from '../content/zones.ts';
 import { construireTerrain, PATHO_PAR_ID, type PathoActive } from '../content/pathologies.ts';
 import { CLASSE_PAR_ID } from '../content/classes.ts';
-import { Stage, type Vue } from './Stage.tsx';
+import { Stage, zoneEn3D, type Vue } from './Stage.tsx';
 import { Moniteur } from './widgets.tsx';
-import { PanneauEvolution, PanneauExplorer, PanneauMaladies, type VueEvolution } from './panels.tsx';
+import { PanneauEvolution, PanneauExplorer, PanneauMaladies, VOYAGE, type VueEvolution } from './panels.tsx';
 
 type Onglet = 'explorer' | 'maladies' | 'evolution';
+
+const TOUR = VOYAGE.filter((v) => zoneEn3D(v.z));
 
 const lire = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const ecrire = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* stockage indisponible */ } };
@@ -67,6 +69,18 @@ export default function App() {
     Object.keys(traitement).length ? 'Traitement : ' + (Object.keys(traitement) as ClasseId[]).map((c) => CLASSE_PAR_ID[c].court).join(', ') : '',
     `PA ${etatScene.pas}/${etatScene.pad}`,
   ].filter(Boolean).join(' · ');
+  // Visite guidée : la caméra suit le sang étape par étape dans le cœur en 3D.
+  const [tour, setTour] = useState<number | null>(null);
+  useEffect(() => {
+    if (tour === null) return;
+    setZone(TOUR[tour].z);
+    const t = setTimeout(() => setTour((k) => (k === null || k >= TOUR.length - 1 ? null : k + 1)), 4200);
+    return () => clearTimeout(t);
+  }, [tour]);
+  useEffect(() => { if (vue !== '3d') setTour(null); }, [vue]);
+  // Le bouton « Cœur » se souvient du dernier mode (2D ou 3D).
+  const [modeCoeur, setModeCoeur] = useState<'3d' | 'coeur2d'>('3d');
+  useEffect(() => { if (vue === '3d' || vue === 'coeur2d') setModeCoeur(vue); }, [vue]);
   const choisirNiveau = (n: Niveau) => { setNiveau(n); ecrire('hemo.niveau', String(n)); setAccueil(false); };
   // Quand une maladie est ajoutée, la scène va directement sur la zone atteinte.
   const ZONE_LESION: Record<string, ZoneId> = { hta: 'aorte', htaSys: 'aorte', dyslip: 'coronaires', athero: 'carotides', aomi: 'membres', angor: 'coronaires', idm: 'coronaires', hvg: 'vg', icfer: 'vg', icfep: 'vg', oap: 'poumons', ra: 'valveAo', ia: 'valveAo', rm: 'valveMi', im: 'valveMi', it: 'valveTri', fa: 'og', bav: 'noeudAV', avc: 'cerveau', irc: 'reins', diabete: 'reins' };
@@ -114,7 +128,7 @@ export default function App() {
           </div>
 
           <div className="seg hidden lg:inline-flex" role="group" aria-label="Vue">
-            <button className={vue === '3d' ? 'actif' : ''} onClick={() => setVue('3d')} title="Le cœur en 3D"><Box size={14} className="inline -mt-0.5 hidden md:inline" /> Cœur</button>
+            <button className={vue === '3d' || vue === 'coeur2d' ? 'actif' : ''} onClick={() => setVue(modeCoeur)} title="Le cœur en 2D et en 3D"><Box size={14} className="inline -mt-0.5 hidden md:inline" /> Cœur</button>
             <button className={vue === '2d' ? 'actif' : ''} onClick={() => setVue('2d')}>Voyage</button>
             <button className={vue === 'corps' ? 'actif' : ''} onClick={() => setVue('corps')}>Corps</button>
             <button className={vue === 'vaisseau' ? 'actif' : ''} onClick={() => setVue('vaisseau')}>Vaisseau</button>
@@ -129,7 +143,7 @@ export default function App() {
         <div className="lg:hidden px-3 pb-2 grid sm:grid-cols-2 gap-2">
           <div className="seg w-full justify-between">{NIVEAUX.map((x) => <button key={x.n} className={`flex-1 ${niveau === x.n ? 'actif' : ''}`} onClick={() => choisirNiveau(x.n)}>{x.nom}</button>)}</div>
           <div className="seg w-full justify-between [&>button]:flex-1" role="group" aria-label="Vue">
-            <button className={vue === '3d' ? 'actif' : ''} onClick={() => setVue('3d')} title="Le cœur en 3D"><Box size={14} className="inline -mt-0.5 hidden md:inline" /> Cœur</button>
+            <button className={vue === '3d' || vue === 'coeur2d' ? 'actif' : ''} onClick={() => setVue(modeCoeur)} title="Le cœur en 2D et en 3D"><Box size={14} className="inline -mt-0.5 hidden md:inline" /> Cœur</button>
             <button className={vue === '2d' ? 'actif' : ''} onClick={() => setVue('2d')}>Voyage</button>
             <button className={vue === 'corps' ? 'actif' : ''} onClick={() => setVue('corps')}>Corps</button>
             <button className={vue === 'vaisseau' ? 'actif' : ''} onClick={() => setVue('vaisseau')}>Vaisseau</button>
@@ -141,7 +155,7 @@ export default function App() {
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 grid gap-3 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col gap-3 min-w-0">
           <div className="h-[56vh] min-h-[340px] lg:h-[calc(100vh-190px)] lg:min-h-[520px]">
-            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} legende={legende} onVue={setVue} />
+            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} legende={legende} onVue={setVue} onVoyage3D={() => { setVue('3d'); setTour(0); }} tourTexte={tour !== null ? `${tour + 1}/${TOUR.length} · ${TOUR[tour].etape}` : null} onStopTour={() => { setTour(null); setZone(null); }} />
           </div>
           {vueEvo && (
             <div className="rounded-xl border border-warn/40 bg-warn/8 px-3 py-2 text-[13px] flex items-center gap-2">

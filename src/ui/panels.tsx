@@ -179,6 +179,7 @@ function ordreFamilles(vue: Vue, zone: ZoneId | null): Famille[] {
   if (vue === 'vaisseau') tete = ['lipides', 'arteres', 'coronaires'];
   else if (vue === 'corps') tete = ['organes', 'arteres', 'lipides'];
   else if (vue === '2d') tete = ['arteres', 'lipides', 'coronaires'];
+  else if (vue === 'coeur2d') tete = ['valves', 'myocarde', 'rythme'];
   if (zone?.startsWith('valve')) tete = ['valves', ...tete];
   else if (zone === 'noeudSinusal' || zone === 'noeudAV') tete = ['rythme', ...tete];
   else if (zone === 'coronaires') tete = ['coronaires', ...tete];
@@ -187,7 +188,7 @@ function ordreFamilles(vue: Vue, zone: ZoneId | null): Famille[] {
   return [...new Set([...tete, ...tout])];
 }
 
-const NOM_VUE: Record<Vue, string> = { '3d': 'le cœur', '2d': 'le voyage du sang', corps: 'le corps', vaisseau: 'le vaisseau' };
+const NOM_VUE: Record<Vue, string> = { '3d': 'le cœur', coeur2d: 'le cœur', '2d': 'le voyage du sang', corps: 'le corps', vaisseau: 'le vaisseau' };
 
 export function PanneauMaladies(props: {
   niveau: Niveau; vue: Vue; zone: ZoneId | null; actives: PathoActive[]; focus: string | null; traitement: Traitement;

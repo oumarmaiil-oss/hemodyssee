@@ -445,11 +445,20 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     g2.lineWidth = 3; g2.globalAlpha = 0.6; g2.beginPath(); g2.arc(64, 64, 58, 0, Math.PI * 2); g2.stroke();
     return new THREE.CanvasTexture(c);
   })();
-  const halos: THREE.Sprite[] = Array.from({ length: 8 }, () => {
+  const halos: THREE.Sprite[] = Array.from({ length: 10 }, () => {
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, color: 0xffc04a, transparent: true, depthTest: false, depthWrite: false }));
     sp.visible = false; sp.renderOrder = 10; coeur.add(sp); return sp;
   });
-  let lesionsActives: { p: THREE.Vector3; r: number; c: number }[] = [];
+  let lesionsActives: { p: THREE.Vector3; r: number; c: number; nom: string }[] = [];
+  // Étiquettes qui nomment chaque atteinte (toujours visibles).
+  const calqueLesions = document.createElement('div');
+  calqueLesions.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden';
+  conteneur.appendChild(calqueLesions);
+  const etiqLesions: HTMLDivElement[] = Array.from({ length: 10 }, () => {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:absolute;left:0;top:0;display:none;font:700 10.5px "Plus Jakarta Sans",system-ui;color:#1a0d06;padding:2px 7px;border-radius:999px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.4);will-change:transform';
+    calqueLesions.appendChild(el); return el;
+  });
 
   // ── Étiquettes HTML ──
   const calque = document.createElement('div');
@@ -711,6 +720,19 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
       (h.material as THREE.SpriteMaterial).color.setHex(l.c);
       (h.material as THREE.SpriteMaterial).opacity = 0.55 + 0.35 * Math.sin(temps * 4 + k) ** 2;
     });
+    {
+      const w = conteneur.clientWidth, hh = conteneur.clientHeight;
+      etiqLesions.forEach((el, k) => {
+        const l = lesionsActives[k];
+        if (!l) { el.style.display = 'none'; return; }
+        tmp.copy(l.p).project(camera);
+        if (tmp.z > 1) { el.style.display = 'none'; return; }
+        el.style.display = 'block';
+        el.textContent = l.nom;
+        el.style.background = '#' + l.c.toString(16).padStart(6, '0');
+        el.style.transform = `translate(${((tmp.x + 1) / 2) * w + 14}px, ${((1 - tmp.y) / 2) * hh - 10}px)`;
+      });
+    }
 
     // Étiquettes.
     if (etiquettes.length) {
@@ -744,16 +766,21 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     tubesCarotides.forEach((tb, k) => retrecir(tb, 0.42, 0.12, 0.75 * t.plaqueCarotide * (k === 0 ? 1 : 0.7)));
     plaquesCarotides.forEach((m, k) => { m.visible = t.plaqueCarotide > 0.15; m.scale.setScalar(0.8 + 1.4 * t.plaqueCarotide * (k === 0 ? 1 : 0.7)); });
     retrecir(tubeIVA, 0.3, 0.06, 0.8 * t.plaqueCoro);
-    const L: { p: THREE.Vector3; r: number; c: number }[] = [];
-    const ORANGE = 0xffb03a, ROUGE = 0xff4d5e, JAUNE = 0xffe066;
-    if (t.ra > 0.25 || t.ia > 0.25) L.push({ p: P.ao, r: 0.75, c: ORANGE });
-    if (t.rm > 0.25 || t.im > 0.25) L.push({ p: P.mi, r: 0.85, c: ORANGE });
-    if (t.it > 0.25) L.push({ p: P.tri, r: 0.85, c: ORANGE });
-    if (t.plaqueCoro > 0.15) L.push({ p: courbeIVA.getPointAt(0.3), r: 0.45, c: t.plaqueCoro > 0.85 ? ROUGE : JAUNE });
-    if (t.plaqueCarotide > 0.15) L.push({ p: carotides[0].courbe.getPointAt(0.42), r: 0.45, c: JAUNE });
-    if (e.thrombusOG) L.push({ p: P.auricule, r: 0.5, c: ROUGE });
-    if (t.ischemie > 0.1) L.push({ p: V(0.62, -0.75, 0.55), r: 0.9, c: ROUGE });
-    if (t.rythme === 'bav3') L.push({ p: P.av, r: 0.5, c: ROUGE });
+    const L: { p: THREE.Vector3; r: number; c: number; nom: string }[] = [];
+    const ORANGE = 0xffb03a, ROUGE = 0xff6b78, JAUNE = 0xffe066, VIOLET = 0xc9a7ff, BLEU = 0x8fb8ff;
+    const valve = (st: number, fu: number) => (st > 0.25 && fu > 0.25 ? 'Rétrécie et fuit' : st > 0.25 ? 'Valve rétrécie' : 'Valve qui fuit');
+    if (t.ra > 0.25 || t.ia > 0.25) L.push({ p: P.ao, r: 0.75, c: ORANGE, nom: valve(t.ra, t.ia) });
+    if (t.rm > 0.25 || t.im > 0.25) L.push({ p: P.mi, r: 0.85, c: ORANGE, nom: valve(t.rm, t.im) });
+    if (t.it > 0.25) L.push({ p: P.tri, r: 0.85, c: ORANGE, nom: 'Valve qui fuit' });
+    if (t.plaqueCoro > 0.15) L.push({ p: courbeIVA.getPointAt(0.3), r: 0.45, c: t.plaqueCoro > 0.85 ? ROUGE : JAUNE, nom: t.plaqueCoro > 0.85 ? 'Artère bouchée' : 'Plaque' });
+    if (t.plaqueCarotide > 0.15) L.push({ p: carotides[0].courbe.getPointAt(0.42), r: 0.45, c: JAUNE, nom: 'Carotide rétrécie' });
+    if (e.thrombusOG) L.push({ p: P.auricule, r: 0.5, c: ROUGE, nom: 'Caillot' });
+    if (t.ischemie > 0.1) L.push({ p: V(0.62, -0.75, 0.55), r: 0.9, c: ROUGE, nom: 'Nécrose (infarctus)' });
+    else if (e.fe < 0.42) L.push({ p: V(0.75, -0.35, 0.35), r: 0.9, c: BLEU, nom: 'Contraction faible' });
+    if (e.postcharge > 1.25) L.push({ p: V(0.45, 2.05, -0.3), r: 0.7, c: ORANGE, nom: 'Post-charge ↑ : le cœur force' });
+    if (t.hvg > 0.35) L.push({ p: V(0.95, -0.6, -0.1), r: 0.7, c: VIOLET, nom: 'Paroi épaissie' });
+    if (t.rythme === 'bav3') L.push({ p: P.av, r: 0.5, c: ROUGE, nom: 'Bloc : rythme lent' });
+    if (t.rythme === 'fa') L.push({ p: P.og.clone().add(V(0, 0.45, 0)), r: 0.6, c: JAUNE, nom: 'Fibrillation' });
     lesionsActives = L.slice(0, halos.length);
   }
 
@@ -800,7 +827,7 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
       scene.traverse((o) => { const m = o as THREE.Mesh; if (m.geometry) m.geometry.dispose(); });
       envTex.dispose(); pmrem.dispose();
       renderer.dispose();
-      renderer.domElement.remove(); calque.remove();
+      renderer.domElement.remove(); calque.remove(); calqueLesions.remove();
     },
   };
 }

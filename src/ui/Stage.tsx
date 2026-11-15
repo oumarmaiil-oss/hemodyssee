@@ -1,6 +1,6 @@
 /** Scène principale : cœur 3D ou voyage du sang 2D, animés par une horloge commune. */
 import { useEffect, useRef, useState } from 'react';
-import { Box, Camera, Circle, Eye, Layers, RotateCcw, Scissors, Square, Tag } from 'lucide-react';
+import { Box, Camera, Circle, Eye, Layers, Play, RotateCcw, Scissors, Square, Tag } from 'lucide-react';
 import { Horloge, NOMS_PHASES, type Phase } from '../core/clock.ts';
 import type { Son } from '../core/audio.ts';
 import type { Etat, Niveau } from '../core/types.ts';
@@ -13,7 +13,7 @@ import { creerVaisseau2D, SITES, type Site, type Vaisseau2D } from '../render/va
 type Rendu = Coeur3D | Circuit2D | Corps2D | Vaisseau2D;
 const SITE_DE_ZONE: Partial<Record<ZoneId, Site>> = { coronaires: 'coronaire', carotides: 'carotide', cerveau: 'carotide', membres: 'jambe', aorte: 'aorte', reins: 'arteriole', vg: 'coronaire' };
 
-export type Vue = '3d' | '2d' | 'corps' | 'vaisseau';
+export type Vue = '3d' | 'coeur2d' | '2d' | 'corps' | 'vaisseau';
 
 const ZONES_3D: ZoneId[] = ['od', 'vd', 'og', 'vg', 'valveTri', 'valvePu', 'valveMi', 'valveAo', 'noeudSinusal', 'noeudAV', 'aorte', 'artPulm', 'veinesCaves', 'veinesPulm', 'coronaires', 'carotides'];
 export const zoneEn3D = (z: ZoneId) => ZONES_3D.includes(z);
@@ -21,12 +21,13 @@ export const zoneEn3D = (z: ZoneId) => ZONES_3D.includes(z);
 /** Où chaque zone est visible. Sert à proposer la bonne vue au lieu de changer de vue tout seul. */
 const ZONES_VUE: Record<Vue, ZoneId[]> = {
   '3d': ZONES_3D,
+  coeur2d: ['od', 'vd', 'og', 'vg', 'valveTri', 'valvePu', 'valveMi', 'valveAo', 'noeudSinusal', 'noeudAV', 'aorte', 'artPulm', 'veinesPulm', 'coronaires'],
   '2d': ['od', 'vd', 'og', 'vg', 'valveTri', 'valvePu', 'valveMi', 'valveAo', 'noeudSinusal', 'noeudAV', 'aorte', 'artPulm', 'veinesCaves', 'veinesPulm', 'coronaires', 'poumons', 'cerveau', 'carotides', 'reins', 'membres'],
   corps: ['cerveau', 'carotides', 'vg', 'poumons', 'reins', 'aorte', 'membres', 'veinesCaves'],
   vaisseau: ['coronaires', 'carotides', 'cerveau', 'membres', 'aorte', 'reins'],
 };
 export const zoneDansVue = (z: ZoneId, v: Vue) => ZONES_VUE[v].includes(z);
-export const NOMS_VUES: Record<Vue, string> = { '3d': 'Cœur', '2d': 'Voyage', corps: 'Corps', vaisseau: 'Vaisseau' };
+export const NOMS_VUES: Record<Vue, string> = { '3d': 'Cœur 3D', coeur2d: 'Cœur 2D', '2d': 'Voyage', corps: 'Corps', vaisseau: 'Vaisseau' };
 /** Meilleure vue pour une zone : le cœur pour ses structures, le corps pour les organes. */
 export const vuePour = (z: ZoneId): Vue => (zoneEn3D(z) ? '3d' : zoneDansVue(z, 'corps') ? 'corps' : '2d');
 
@@ -42,9 +43,12 @@ interface Props {
   ralenti: boolean;
   legende: string;
   onVue: (v: Vue) => void;
+  onVoyage3D: () => void;
+  tourTexte: string | null;
+  onStopTour: () => void;
 }
 
-export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue }: Props) {
+export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue, onVoyage3D, tourTexte, onStopTour }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const [site, setSite] = useState<Site>('coronaire');
@@ -94,7 +98,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
       import('../render/heart3d.ts').then((m) => monter(m.creerCoeur3D(el, opts))).catch(() => setErreur3D(true));
     } else if (vue === 'corps') monter(creerCorps2D(el, opts));
     else if (vue === 'vaisseau') monter(creerVaisseau2D(el, opts));
-    else monter(creerCircuit2D(el, opts));
+    else monter(creerCircuit2D(el, { ...opts, coeur: vue === 'coeur2d' }));
     return () => { annule = true; rendu.current?.dispose(); rendu.current = null; };
   }, [vue]);
 
@@ -258,6 +262,25 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 seg flex-wrap justify-center max-w-[95%]">
           {SITES.map((x) => <button key={x.id} className={site === x.id ? 'actif' : ''} onClick={() => setSite(x.id)}>{x.nom}</button>)}
         </div>
+      )}
+
+      {/* Cœur : bascule 2D / 3D */}
+      {(vue === '3d' || vue === 'coeur2d') && (
+        <div className={`absolute left-3 seg ${niveau >= 2 ? 'top-12' : 'top-3'}`}>
+          <button className={vue === 'coeur2d' ? 'actif' : ''} onClick={() => onVue('coeur2d')}>2D</button>
+          <button className={vue === '3d' ? 'actif' : ''} onClick={() => onVue('3d')}>3D</button>
+        </div>
+      )}
+      {/* Visite guidée du voyage du sang en 3D */}
+      {tourTexte ? (
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 max-w-[92%] rounded-2xl bg-ink/90 border border-sang/50 px-4 py-2.5 text-sm flex items-center gap-3 fade-in">
+          <span className="w-2.5 h-2.5 rounded-full bg-sang animate-pulse shrink-0" /><span>{tourTexte}</span>
+          <button onClick={onStopTour} className="text-xs text-muted hover:text-txt shrink-0">Arrêter</button>
+        </div>
+      ) : (vue === '3d' || vue === '2d') && pret && (
+        <button onClick={onVoyage3D} className="absolute bottom-10 left-1/2 -translate-x-1/2 rounded-full bg-sang/90 hover:bg-sang text-white text-sm font-bold px-4 py-2 inline-flex items-center gap-2 shadow-lg">
+          <Play size={15} /> Voyage du sang en 3D
+        </button>
       )}
 
       {/* Signature discrète dans la scène */}
