@@ -173,7 +173,7 @@ export function calculer(base: Terrain, tr: Traitement = {}, opt: OptionsCalcul 
     pvc: Math.round(pvc), postcharge: t.rvs * (1 + 1.6 * t.ra * t.ra), ldl: t.ldl,
     perfusion: { cerveau, coeur, reins, membres, poumons },
     risques: { avc, coronaire, ic: icRisque, rein },
-    effets, alertes, terrain: t, thrombusOG, embolieCarotide, oedemes,
+    effets, alertes, terrain: t, base, traitement: tr, fraction, thrombusOG, embolieCarotide, oedemes,
   };
 }
 

@@ -77,6 +77,9 @@ export interface Etat {
   effets: string[]; // effets indésirables visibles
   alertes: Alerte[];
   terrain: Terrain; // terrain effectif (après traitement)
+  base: Terrain; // terrain avant traitement
+  traitement: Traitement; // traitement appliqué
+  fraction: number; // part de l'effet du traitement (0..1)
   thrombusOG: boolean; // caillot dans l'auricule gauche (FA non anticoagulée)
   embolieCarotide: boolean; // plaque carotidienne serrée non protégée : un fragment peut partir vers le cerveau
   oedemes: number; // œdèmes des jambes 0..1 (congestion veineuse ou inhibiteur calcique)

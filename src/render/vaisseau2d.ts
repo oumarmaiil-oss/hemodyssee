@@ -5,6 +5,7 @@
  */
 import type { Instant } from '../core/clock.ts';
 import type { Etat } from '../core/types.ts';
+import { effetsVisibles } from '../core/effets.ts';
 import type { ZoneId } from '../content/zones.ts';
 
 export type Site = 'coronaire' | 'carotide' | 'jambe' | 'aorte' | 'arteriole';
@@ -78,9 +79,11 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
     if (etape !== null) {
       // Démonstration : la plaque grandit d'une étape à l'autre (transition douce sur ~1,2 s).
       const k = Math.min(1, tEtape / 1.2), cible = STEN_ETAPE[etape], avant = STEN_ETAPE[Math.max(0, etape - 1)];
-      return { sten: lerp(avant, cible, k * k * (3 - 2 * k)), rigid: 0.12, rayon: 92, media: 22, occl: etape === 5, ldl: etape === 0 ? 2 : 4.8, debit: 1 };
+      return { sten: lerp(avant, cible, k * k * (3 - 2 * k)), rigid: 0.12, rayon: 92, media: 22, occl: etape === 5, ldl: etape === 0 ? 2 : 4.8, debit: 1, rayonAvant: 0 };
     }
-    return { sten, rigid, rayon: base * constr, media, occl, ldl: e?.ldl ?? 2.6, debit: (e?.debit ?? 5) / 5 };
+    // Calibre de l'artériole avant traitement (pour montrer ce que le traitement a rouvert).
+    const rayonAvant = site === 'arteriole' && e?.base ? base * clamp(1 / Math.pow(e.base.rvs, 1.1), 0.45, 1.1) : 0;
+    return { sten, rigid, rayon: base * constr, media, occl, ldl: e?.ldl ?? 2.6, debit: (e?.debit ?? 5) / 5, rayonAvant };
   }
 
   /** Demi-hauteur de la lumière à l'abscisse x (rétrécissement centré en x = 500). */
@@ -92,7 +95,9 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
     return r - plaque;
   }
 
-  function texte(t: string, x: number, y: number, taille = 13, coul = '#e9eef8', align: CanvasTextAlign = 'center') {
+  let fz = 1; // grossissement des textes sur petit écran
+  function texte(t: string, x: number, y: number, taille0 = 13, coul = '#e9eef8', align: CanvasTextAlign = 'center') {
+    const taille = taille0 * fz;
     g.font = `600 ${taille}px "Plus Jakarta Sans", system-ui`; g.textAlign = align; g.textBaseline = 'middle';
     const w = g.measureText(t).width;
     const x0 = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
@@ -104,6 +109,7 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
     const p = params();
     const k = Math.min(cw / W, ch / H);
     const ox = (cw - W * k) / 2, oy = (ch - H * k) / 2;
+    fz = clamp(0.6 / k, 1, 1.8);
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, cw, ch);
     g.setTransform(dpr * k, 0, 0, dpr * k, dpr * ox, dpr * oy);
 
@@ -148,10 +154,12 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
 
     // Plaque d'athérome : cœur lipidique jaune et chape fibreuse.
     if (p.sten > 0.04) {
-      const chape = etape !== null ? (etape >= 4 ? 0.15 : etape === 3 ? 0.9 : 0.4) : clamp(1 - (p.ldl - 1.8) / 3, 0.25, 1);
+      const fx = etape === null ? effetsVisibles(etat) : null;
+      const chape = etape !== null ? (etape >= 4 ? 0.15 : etape === 3 ? 0.9 : 0.4) : fx?.statine ? 1 : clamp(1 - (p.ldl - 1.8) / 3, 0.25, 1);
       for (const haut of [false, true]) {
         const s = haut ? -1 : 1;
-        g.fillStyle = '#f2c94c'; g.beginPath();
+        // Sous statine, le cœur lipidique s'appauvrit : la plaque devient plus fibreuse (plus pâle).
+        g.fillStyle = fx?.statine ? '#ead9a6' : '#f2c94c'; g.beginPath();
         for (let x = 230; x <= 770; x += pas) { const y = CY + s * lumiere(x, p, haut); x === 230 ? g.moveTo(x, y) : g.lineTo(x, y); }
         for (let x = 770; x >= 230; x -= pas) g.lineTo(x, CY + s * (p.rayon + 4));
         g.closePath(); g.fill();
@@ -181,6 +189,11 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
       g.fillStyle = 'rgba(255,255,255,.18)'; for (let k2 = 0; k2 < 30; k2++) { g.fillRect(450 + ((k2 * 37) % 100), CY - 20 + ((k2 * 13) % 40), 8, 1.5); }
     }
 
+    if (p.rayonAvant && p.rayon - p.rayonAvant > 3) {
+      g.setLineDash([10, 8]); g.strokeStyle = 'rgba(251,191,36,.85)'; g.lineWidth = 2.5;
+      for (const sgn of [-1, 1]) { g.beginPath(); g.moveTo(0, CY + sgn * p.rayonAvant); g.lineTo(W, CY + sgn * p.rayonAvant); g.stroke(); }
+      g.setLineDash([]);
+    }
     if (etape === 5) {
       const cyc = (tEtape % 3.2) / 3.2;
       const fx = 560 + cyc * 460, fy = CY + 20 * Math.sin(cyc * 6);
@@ -223,7 +236,7 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
     if (labels) {
       texte('Adventice', 90, CY - r0 - p.media - 22, 12, '#f5dcc0');
       texte(p.rigid > 0.4 ? 'Média durcie (rigide)' : 'Média (muscle)', 120, CY - r0 - p.media / 2 - 6, 12, '#ffd0d6');
-      texte('Intima', 90, CY - r0 - 1, 11, '#fff');
+      if (fz < 1.3) texte('Intima', 90, CY - r0 - 1, 11, '#fff'); // trop serré sur téléphone
       texte('Lumière : le sang circule', 150, CY + 4, 12);
       if (etape !== null) {
         const nom = ['Endothélium lisse', 'LDL sous l\'endothélium', 'Cellules spumeuses', 'Cœur lipidique + chape fibreuse', 'Fissure → plaquettes → caillot', 'Caillot : artère bouchée'][etape];
@@ -234,6 +247,12 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
         if (p.ldl > 2.6) texte('LDL qui entre dans la paroi', 800, CY + r0 + 52, 12, '#ffe08a');
         const t = etat?.terrain;
         if (t && site === 'carotide' && t.avc > 0.3 && t.plaqueCarotide < 0.3) texte('Carotide saine : le caillot de cet AVC vient d\'ailleurs (souvent du cœur, en FA)', W / 2, 76, 12, '#a4b1c7');
+        const fx2 = effetsVisibles(etat);
+        const verts: string[] = [];
+        if (fx2.statine && p.sten > 0.04) verts.push('Statine : plaque stabilisée (chape épaisse, moins de lipides)');
+        if (fx2.antiagregant && p.sten > 0.3) verts.push('Aspirine : les plaquettes ne forment plus de caillot');
+        if (p.rayonAvant && p.rayon - p.rayonAvant > 3) verts.push('Traitement : l\'artériole se relâche (pointillés = avant)');
+        verts.forEach((v, k) => texte(v, W / 2, H - 86 - k * 30, 12.5, '#6ee7b7'));
         if (etat?.embolieCarotide && site === 'carotide') texte('Plaque serrée : un fragment peut partir vers le cerveau (AVC)', W / 2, 76, 12, '#ffb3bd');
       }
     }
@@ -244,6 +263,7 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
       texte(`${nomSite} · calibre réduit de ${red} %`, W / 2, 40, 16, red >= 15 ? '#fbbf24' : '#e9eef8');
     } else texte(`${nomSite} · rétrécissement ${pct} %`, W / 2, 40, 16, pct >= 70 ? '#fb7185' : pct >= 40 ? '#fbbf24' : '#e9eef8');
     if (etape !== null) { /* le bandeau de lecture explique l'étape */ }
+    else if (site === 'arteriole' && p.rayonAvant && p.rayon - p.rayonAvant > 3) { /* l'étiquette verte explique l'effet du traitement */ }
     else if (site === 'arteriole') texte(`Artériole ${p.rayon < 62 ? 'resserrée (HTA) : la résistance augmente' : 'normale'}`, W / 2, H - 40, 13, p.rayon < 62 ? '#fbbf24' : '#a4b1c7');
     else if (p.rigid > 0.35) texte('Paroi durcie : elle se dilate moins à chaque battement', W / 2, H - 40, 13, '#fbbf24');
     if (etat && etape === null) texte(`PA ${etat.pas}/${etat.pad} mmHg · LDL ${etat.ldl.toFixed(1)} mmol/L`, W - 20, H - 40, 12, '#a4b1c7', 'right');

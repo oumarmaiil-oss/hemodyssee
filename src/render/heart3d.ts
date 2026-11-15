@@ -8,6 +8,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { Instant } from '../core/clock.ts';
 import type { Etat } from '../core/types.ts';
+import { effetsVisibles } from '../core/effets.ts';
 import type { ZoneId } from '../content/zones.ts';
 
 export type Coupe = 'aucune' | 'frontale';
@@ -811,6 +812,12 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     if (t.hvg > 0.35) L.push({ p: V(0.95, -0.6, -0.1), r: 0.7, c: VIOLET, nom: 'Paroi épaissie' });
     if (t.rythme === 'bav3') L.push({ p: P.av, r: 0.5, c: ROUGE, nom: 'Bloc : rythme lent' });
     if (t.rythme === 'fa') L.push({ p: P.og.clone().add(V(0, 0.45, 0)), r: 0.6, c: JAUNE, nom: 'Fibrillation' });
+    // Effets des traitements : étiquettes vertes, sans halo.
+    const VERT = 0x6ee7b7, fx = effetsVisibles(e);
+    if (fx.anticoagulant) L.push({ p: P.auricule, r: 0, c: VERT, nom: 'Anticoagulant : plus de caillot' });
+    if (fx.statine && t.plaqueCoro > 0.15) L.push({ p: courbeIVA.getPointAt(0.5), r: 0, c: VERT, nom: 'Statine : plaque stabilisée' });
+    if (fx.bradycardie) L.push({ p: P.sa, r: 0, c: VERT, nom: `Bêtabloquant : ${e.fc}/min` });
+    if (fx.vasodilatation && e.postcharge <= 1.25) L.push({ p: V(0.45, 2.05, -0.3), r: 0, c: VERT, nom: 'Post-charge ↓ : le cœur force moins' });
     lesionsActives = L.slice(0, halos.length);
   }
 

@@ -6,6 +6,7 @@
  */
 import type { Instant } from '../core/clock.ts';
 import type { Etat } from '../core/types.ts';
+import { effetsVisibles } from '../core/effets.ts';
 import type { ZoneId } from '../content/zones.ts';
 
 type Pt = [number, number];
@@ -358,6 +359,10 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
       if (t.rythme === 'bav3') tags.push(['Bloc : rythme lent', 498, 432, '#ff6b78']);
       if (t.rythme === 'fa') tags.push(['Fibrillation', 500, 300, '#ffe066']);
       if (e.perfusion.poumons < 0.8) tags.push(['Poumons noyés', 500, 250, '#8fb8ff']);
+      const fx = effetsVisibles(e);
+      if (fx.anticoagulant) tags.push(['Anticoagulant : plus de caillot', 640, 300, '#6ee7b7']);
+      if (fx.bradycardie) tags.push([`Bêtabloquant : ${e.fc}/min`, 430, 300, '#6ee7b7']);
+      if (fx.vasodilatation && e.postcharge <= 1.25) tags.push(['Post-charge ↓', 700, 245, '#6ee7b7']);
       const k = 11.5 / Math.sqrt(vue.s);
       for (const [tx, x, y, c] of tags) {
         g.font = `700 ${k}px "Plus Jakarta Sans", system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle';

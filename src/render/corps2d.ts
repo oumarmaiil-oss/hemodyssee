@@ -5,6 +5,7 @@
  */
 import type { Instant } from '../core/clock.ts';
 import type { Etat } from '../core/types.ts';
+import { effetsVisibles } from '../core/effets.ts';
 import type { ZoneId } from '../content/zones.ts';
 
 type Pt = [number, number];
@@ -234,6 +235,13 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
       if (demo) texte('Plaque carotidienne serrée', 420, 186, '#ffe08a');
       else if ((t?.plaqueCarotide ?? 0) > 0.15) texte(`Plaque carotidienne ${Math.round((t!.plaqueCarotide) * 92)} %`, 420, 186, '#ffe08a');
       if ((t?.avc ?? 0) > 0.05) texte('AVC : zone du cerveau privée de sang', 300, 128, '#fb7185');
+      // Effets des traitements (en vert).
+      const fx = effetsVisibles(e);
+      if (fx.anticoagulant) texte('Anticoagulant : plus de caillot dans le cœur', 470, 366, '#6ee7b7');
+      if (fx.antiagregant && (t?.plaqueCarotide ?? 0) > 0.3) texte('Aspirine : pas de caillot sur la plaque', 420, 212, '#6ee7b7');
+      if (fx.diuretique) texte('Diurétique : l\'excès d\'eau s\'élimine', 520, 640, '#6ee7b7');
+      if (fx.bradycardie) texte(`Bêtabloquant : cœur ralenti (${e!.fc}/min)`, 470, 394, '#6ee7b7');
+      if (fx.vasodilatation) texte('Artérioles relâchées : la tension baisse', 300, 548, '#6ee7b7');
     }
 
     for (const r of REGIONS) if (r.z === choisi || r.z === survol) {

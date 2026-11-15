@@ -1,6 +1,6 @@
 /** Scène principale : cœur 3D ou voyage du sang 2D, animés par une horloge commune. */
 import { useEffect, useRef, useState } from 'react';
-import { Activity, Camera, Circle, Layers, Pause, Play, RotateCcw, Scissors, SkipBack, SkipForward, Square, Tag, X } from 'lucide-react';
+import { Activity, Camera, Circle, Layers, Pause, Speech, Play, RotateCcw, Scissors, SkipBack, SkipForward, Square, Tag, X } from 'lucide-react';
 import { Horloge, NOMS_PHASES, type Phase } from '../core/clock.ts';
 import type { Son } from '../core/audio.ts';
 import type { Etat, Niveau } from '../core/types.ts';
@@ -228,6 +228,23 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
       : { texte: 'Le caillot voyage : un fragment parti d\'une plaque carotidienne bouche une artère du cerveau (AVC ischémique).', detail: 'Sur une plaque coronaire, le caillot provoque l\'infarctus ; dans une artère de jambe, l\'ischémie aiguë du membre.' }),
     index: ath.i, total: N_ATH, pause: ath.pause,
   } : null);
+  // Voix off : lit chaque étape à voix haute (voix française de l'appareil, si elle existe).
+  const voixDispo = typeof window !== 'undefined' && 'speechSynthesis' in window;
+  const [voix, setVoix] = useState(() => { try { return localStorage.getItem('hemo.voix') === '1'; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem('hemo.voix', voix ? '1' : '0'); } catch { /* stockage indisponible */ } }, [voix]);
+  const texteLu = lecture && !lecture.pause ? lecture.texte : null;
+  useEffect(() => {
+    if (!voixDispo) return;
+    speechSynthesis.cancel();
+    if (!voix || !texteLu) return;
+    const u = new SpeechSynthesisUtterance(texteLu.replace(/®/g, ''));
+    u.lang = 'fr-FR'; u.rate = 1.02;
+    const fr = speechSynthesis.getVoices().find((v) => v.lang?.toLowerCase().startsWith('fr'));
+    if (fr) u.voice = fr;
+    speechSynthesis.speak(u);
+  }, [voix, texteLu]);
+  useEffect(() => () => { if (voixDispo) speechSynthesis.cancel(); }, []);
+
   const onLecture = (a: 'prev' | 'next' | 'pause' | 'restart' | 'stop') => {
     if (lectureApp || !ath) { onLectureApp(a); return; }
     if (a === 'prev') allerAth(Math.max(0, ath.i - 1));
@@ -390,6 +407,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
               <button onClick={() => onLecture('pause')} className="btn-icone w-8 h-8" aria-label={lecture.pause ? 'Reprendre' : 'Mettre en pause'}>{lecture.pause ? <Play size={14} fill="currentColor" /> : <Pause size={14} />}</button>
               <button onClick={() => onLecture('next')} disabled={lecture.index >= lecture.total - 1} className="btn-icone w-8 h-8 disabled:opacity-35" aria-label="Étape suivante"><SkipForward size={14} /></button>
               <button onClick={() => onLecture('restart')} className="btn-icone w-8 h-8 hidden sm:grid" aria-label="Revoir depuis le début"><RotateCcw size={14} /></button>
+              {voixDispo && <button onClick={() => setVoix((v) => !v)} className={`btn-icone w-8 h-8 ${voix ? 'text-ok border-ok/50' : ''}`} aria-label={voix ? 'Couper la voix off' : 'Activer la voix off'} title="Voix off"><Speech size={14} /></button>}
               <button onClick={() => onLecture('stop')} className="btn-icone w-8 h-8" aria-label="Arrêter la lecture"><X size={14} /></button>
             </div>
           </div>

@@ -1,6 +1,6 @@
 /** Panneaux latéraux : Explorer, Maladies, Traitements, Évolution. */
 import { useMemo, useState } from 'react';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, Ear, Info, Pill, Play, Plus, Sparkles, Stethoscope, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, Ear, Info, Pill, Play, Plus, Printer, Sparkles, Stethoscope, X } from 'lucide-react';
 import type { ClasseId, Etat, Niveau, Terrain, Traitement } from '../core/types.ts';
 import { evoluer, type Scenario } from '../core/engine.ts';
 import { ausculter } from '../core/audio.ts';
@@ -9,6 +9,10 @@ import { FAMILLES, PATHOLOGIES, PATHO_PAR_ID, SEVERITES, type Famille, type Path
 import { classesEnPlus, evaluerPathologie } from '../core/evaluation.ts';
 import { CLASSES, CLASSE_PAR_ID, DOSES, type Classe } from '../content/classes.ts';
 import { LABO, MARQUES } from '../content/labo.ts';
+import { PRESENTATIONS } from '../content/presentations.ts';
+import { CAS } from '../content/cas.ts';
+import { Quiz } from './Quiz.tsx';
+import { FicheImpression, imprimerFiche } from './Fiche.tsx';
 import { GraphiqueEvolution, LEGENDE_SCENARIOS, Moniteur, Risques } from './widgets.tsx';
 import { NOMS_VUES, vuePour, zoneDansVue, type Vue } from './Stage.tsx';
 
@@ -222,8 +226,11 @@ export function PanneauMaladies(props: {
   onFocus: (id: string | null) => void; onToggle: (id: string) => void; onSeverite: (id: string, s: number) => void;
   onScenario: (a: PathoActive[]) => void; onDose: (c: ClasseId, d: number) => void; onRemplacer: (t: Traitement) => void;
   onSequence: () => void; onComparer: () => void;
-  onVoir: (v: 'coeur' | 'corps' | 'vaisseau') => void; onEtapes: () => void;
+  onVoir: (v: 'coeur' | 'corps' | 'vaisseau') => void; onEtapes: () => void; onPresentation: (id: string) => void;
+  onCas: (actives: PathoActive[], traitement: Traitement, zone: ZoneId | null) => void;
 }) {
+  const [quiz, setQuiz] = useState(false);
+  if (quiz) return <Quiz onFermer={() => setQuiz(false)} onSimuler={props.onCas} onEffet={props.onSequence} />;
   const { niveau, vue, zone, actives, focus, onFocus, onToggle, onSeverite, onScenario } = props;
   const f = focus ? PATHO_PAR_ID[focus] : null;
   const familles = ordreFamilles(vue, zone);
@@ -256,10 +263,30 @@ export function PanneauMaladies(props: {
             </div>
             <div className="titre-section mt-3 mb-1">Conséquences</div><ul className="text-[13.5px] space-y-0.5">{f.consequences.map((c) => <li key={c}>• {c}</li>)}</ul></section>
           <BlocTraitement {...props} patho={f} />
+          {actives.length > 0 && <>
+            <button onClick={imprimerFiche} className="w-full rounded-lg bg-card2 border border-line py-2 text-[12.5px] font-semibold inline-flex items-center justify-center gap-1.5"><Printer size={13} /> Fiche récapitulative (imprimer ou PDF)</button>
+            <FicheImpression actives={actives} traitement={props.traitement} etat={props.etat} sans={props.etatSans} labo={props.labo} />
+          </>}
           {f.arret && <section className="rounded-xl bg-warn/8 border border-warn/25 p-3"><div className="titre-section mb-1 text-warn/90">Si on arrête le traitement</div><p className="text-[13.5px]">{f.arret}</p></section>}
         </article>
       ) : (
         <>
+          <div>
+            <div className="titre-section mb-2">Présentations guidées · 2 à 3 min, sans rien toucher</div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {PRESENTATIONS.map((p) => (
+                <button key={p.id} onClick={() => props.onPresentation(p.id)} className="carte p-2 text-left hover:border-sang/50">
+                  <div className="flex items-center gap-1 text-[13px] font-bold"><Play size={11} fill="currentColor" className="text-sang shrink-0" /> {p.titre}</div>
+                  <div className="text-[11px] text-muted leading-tight mt-0.5">{p.pour}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          <button onClick={() => setQuiz(true)} className="w-full carte p-3 flex items-center gap-3 text-left hover:border-accent/50">
+            <span className="w-9 h-9 rounded-xl bg-accent/15 text-accent grid place-items-center shrink-0"><Stethoscope size={18} /></span>
+            <span className="flex-1"><span className="block text-[14px] font-bold">S'entraîner : {CAS.length} cas cliniques</span><span className="block text-[12px] text-muted">Diagnostic, conduite à tenir, correction expliquée</span></span>
+            <ArrowRight size={15} className="text-dim" />
+          </button>
           <div>
             <div className="titre-section mb-2">Cas prêts à présenter</div>
             <div className="flex flex-wrap gap-1.5">
@@ -269,7 +296,11 @@ export function PanneauMaladies(props: {
           </div>
           {actives.length > 0 && (
             <div className="space-y-1.5">
-              <div className="titre-section">Simulées en ce moment — touchez pour traiter</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="titre-section">Simulées en ce moment — touchez pour traiter</div>
+                <button onClick={imprimerFiche} className="text-[11.5px] text-accent font-semibold inline-flex items-center gap-1 shrink-0"><Printer size={12} /> Fiche PDF</button>
+              </div>
+              <FicheImpression actives={actives} traitement={props.traitement} etat={props.etat} sans={props.etatSans} labo={props.labo} />
               {actives.map((a) => {
                 const p = PATHO_PAR_ID[a.id];
                 const pts = evaluerPathologie(a.id, actives, props.etat, props.traitement);
