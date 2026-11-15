@@ -112,10 +112,10 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="h-[100dvh] lg:h-auto lg:min-h-full flex flex-col overflow-hidden lg:overflow-visible">
       {/* En-tête */}
       <header className="sticky top-0 z-30 bg-ink/90 backdrop-blur border-b border-line">
-        <div className="max-w-[1600px] mx-auto px-3 sm:px-5 h-14 flex items-center gap-3">
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-5 h-12 lg:h-14 flex items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-7 h-7 rounded-full bg-gradient-to-br from-sang to-[#7a1424] grid place-items-center shadow-[0_0_18px_rgba(224,65,78,.45)]"><HeartPulse size={16} /></span>
             <div className="leading-tight min-w-0">
@@ -140,7 +140,7 @@ export default function App() {
           <button onClick={() => setSignaler(true)} className="btn-icone" title="Signaler un problème ou suggérer" aria-label="Signaler"><MessageCircle size={16} /></button>
           <button onClick={() => setApropos(true)} className="btn-icone" title="À propos" aria-label="À propos"><Info size={16} /></button>
         </div>
-        <div className="lg:hidden px-3 pb-2 grid sm:grid-cols-2 gap-2">
+        <div className="lg:hidden px-2 pb-1.5 grid sm:grid-cols-2 gap-1.5">
           <div className="seg w-full justify-between">{NIVEAUX.map((x) => <button key={x.n} className={`flex-1 ${niveau === x.n ? 'actif' : ''}`} onClick={() => choisirNiveau(x.n)}>{x.nom}</button>)}</div>
           <div className="seg w-full justify-between [&>button]:flex-1" role="group" aria-label="Vue">
             <button className={vue === '3d' || vue === 'coeur2d' ? 'actif' : ''} onClick={() => setVue(modeCoeur)} title="Le cœur en 2D et en 3D"><Box size={14} className="inline -mt-0.5 hidden md:inline" /> Cœur</button>
@@ -152,10 +152,10 @@ export default function App() {
       </header>
 
       {/* Corps */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 grid gap-3 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="flex flex-col gap-3 min-w-0">
-          <div className="h-[56vh] min-h-[340px] lg:h-[calc(100vh-190px)] lg:min-h-[520px]">
-            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} legende={legende} onVue={setVue} onVoyage3D={() => { setVue('3d'); setTour(0); }} tourTexte={tour !== null ? `${tour + 1}/${TOUR.length} · ${TOUR[tour].etape}` : null} onStopTour={() => { setTour(null); setZone(null); }} />
+      <main className="flex-1 min-h-0 max-w-[1600px] w-full mx-auto p-2 sm:p-4 grid gap-2 lg:gap-3 grid-rows-[auto_minmax(0,1fr)] grid-cols-[minmax(0,1fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="flex flex-col gap-2 lg:gap-3 min-w-0">
+          <div className="h-[34dvh] min-h-[220px] lg:h-[calc(100vh-190px)] lg:min-h-[520px]">
+            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} legende={legende} onVue={setVue} onVoyage3D={() => { setVue('3d'); setTour(0); }} tourTexte={tour !== null ? `${tour + 1}/${TOUR.length} · ${TOUR[tour].etape}` : null} tourActif={tour !== null} onStopTour={() => { setTour(null); setZone(null); }} />
           </div>
           {vueEvo && (
             <div className="rounded-xl border border-warn/40 bg-warn/8 px-3 py-2 text-[13px] flex items-center gap-2">
@@ -167,12 +167,12 @@ export default function App() {
           <Moniteur e={etatScene} niveau={niveau} />
         </section>
 
-        <aside className="min-w-0 lg:h-[calc(100vh-88px)] lg:sticky lg:top-[68px] flex flex-col min-h-0 rounded-2xl border border-line bg-panel">
+        <aside className="min-w-0 min-h-0 lg:h-[calc(100vh-88px)] lg:sticky lg:top-[68px] flex flex-col rounded-2xl border border-line bg-panel overflow-hidden">
           <nav className="grid grid-cols-3 gap-1 p-1.5 border-b border-line" role="tablist">
             {ONGLETS.map((o) => (
               <button key={o.id} role="tab" aria-selected={onglet === o.id} onClick={() => setOnglet(o.id)}
-                className={`relative rounded-xl py-2 text-[12px] font-semibold flex flex-col items-center gap-0.5 ${onglet === o.id ? 'bg-card2 text-white' : 'text-muted hover:text-txt'}`}>
-                <o.icone size={17} />{o.nom}
+                className={`relative rounded-xl py-2 text-[11.5px] sm:text-[12px] font-semibold flex flex-row sm:flex-col items-center justify-center gap-1 sm:gap-0.5 ${onglet === o.id ? 'bg-card2 text-white' : 'text-muted hover:text-txt'}`}>
+                <o.icone size={16} className="shrink-0" /><span className="truncate">{o.nom}</span>
                 {o.badge && <span className="absolute top-1 right-2 min-w-[17px] h-[17px] rounded-full bg-sang text-[10px] grid place-items-center px-1">{o.badge}</span>}
               </button>
             ))}
@@ -190,7 +190,7 @@ export default function App() {
         </aside>
       </main>
 
-      <footer className="text-center text-[11px] text-dim pb-4 px-4">Hémodyssée · Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</footer>
+      <footer className="hidden lg:block text-center text-[11px] text-dim pb-4 px-4">Hémodyssée · Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</footer>
 
       {accueil && <Accueil onChoix={choisirNiveau} />}
       {apropos && <APropos onClose={() => setApropos(false)} labo={labo} />}

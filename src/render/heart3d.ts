@@ -23,6 +23,8 @@ export interface Coeur3D {
   maj(e: Etat): void;
   setCoupe(c: Coupe, pos: number): void;
   setOpacite(a: number): void;
+  /** Durée du déplacement de caméra, en secondes (visite guidée : plus long = plus fluide). */
+  setDureeTween(d: number): void;
   focus(z: ZoneId | null): void;
   selection(z: ZoneId | null): void;
   setEtiquettes(on: boolean, noms: Partial<Record<ZoneId, string>>): void;
@@ -134,6 +136,7 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   const matsZone = new Map<ZoneId, THREE.MeshStandardMaterial[]>();
   const clippables: THREE.Material[] = [];
   const parois: THREE.MeshStandardMaterial[] = [];
+  const cibleOpacite = new Map<THREE.Material, number>();
   const vaisseaux: THREE.MeshStandardMaterial[] = [];
   const pickables: THREE.Object3D[] = [];
   const reg = (z: ZoneId, m: THREE.MeshStandardMaterial) => { if (!matsZone.has(z)) matsZone.set(z, []); matsZone.get(z)!.push(m); };
@@ -155,6 +158,7 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     const extDos = mat({ color: 0x7c222b, side: THREE.BackSide, roughness: 0.7, clearcoat: 0.2, bumpMap: fibres, bumpScale: 0.5 }, z);
     const intFace = mat({ color: 0x86262f, roughness: 0.7, clearcoat: 0.2, bumpMap: fibres, bumpScale: 0.5, vertexColors }, z);
     const intDos = mat({ color: 0xd98f90, side: THREE.BackSide, roughness: 0.32, clearcoat: 0.9, clearcoatRoughness: 0.18, bumpMap: fibres, bumpScale: 0.35, vertexColors }, z);
+    for (const m of [ext, extDos, intFace, intDos]) { m.transparent = true; m.depthWrite = true; }
     parois.push(ext, extDos, intFace, intDos);
     const g = new THREE.Group();
     const m1 = new THREE.Mesh(geoExt, ext), m2 = new THREE.Mesh(geoExt, extDos), m3 = new THREE.Mesh(geoInt, intFace), m4 = new THREE.Mesh(geoInt, intDos);
@@ -470,7 +474,8 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   let etat: Etat | null = null;
   let opacite = 1;
   let survol: ZoneId | null = null, choisi: ZoneId | null = null;
-  let anim: { t: number; dePos: THREE.Vector3; deCible: THREE.Vector3; aPos: THREE.Vector3; aCible: THREE.Vector3 } | null = null;
+  let anim: { t: number; duree: number; dePos: THREE.Vector3; deCible: THREE.Vector3; aPos: THREE.Vector3; aCible: THREE.Vector3 } | null = null;
+  let dureeTween = 0.9;
 
   /** Opacité des parois ; en mode zoom, les structures autour de la zone choisie deviennent « fantômes ». */
   function appliquerOpacite() {
@@ -478,9 +483,10 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     for (const m of parois) {
       const z = m.userData.zone as ZoneId;
       const cible = fantome && z !== choisi ? Math.min(opacite, (choisi === 'coronaires' ? 0.85 : 0.16)) : opacite;
-      const tr = cible < 0.999;
-      if (m.transparent !== tr) m.needsUpdate = true;
-      m.transparent = tr; m.opacity = cible; m.depthWrite = !tr;
+      // Les parois restent toujours « transparent » : changer ce drapeau recompile le shader et saccade l'animation.
+      m.opacity = cibleOpacite.has(m) ? cible : cible;
+      cibleOpacite.set(m, cible);
+      m.depthWrite = cible >= 0.999;
     }
     for (const m of vaisseaux) {
       const z = m.userData.zone as ZoneId;
@@ -539,7 +545,7 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   ro.observe(conteneur);
 
   function allerVers(pos: THREE.Vector3, cible: THREE.Vector3) {
-    anim = { t: 0, dePos: camera.position.clone(), deCible: controls.target.clone(), aPos: pos, aCible: cible };
+    anim = { t: 0, duree: dureeTween, dePos: camera.position.clone(), deCible: controls.target.clone(), aPos: pos, aCible: cible };
   }
 
   // ── Boucle d'image ──
@@ -568,8 +574,10 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
 
     // Caméra animée.
     if (anim) {
-      anim.t = Math.min(1, anim.t + dt / 0.9);
-      const k = smooth(0, 1, anim.t);
+      anim.t = Math.min(1, anim.t + dt / anim.duree);
+      // Accélération puis freinage très progressifs : la caméra glisse au lieu de sauter.
+      const x = anim.t;
+      const k = x * x * x * (x * (x * 6 - 15) + 10);
       camera.position.lerpVectors(anim.dePos, anim.aPos, k);
       controls.target.lerpVectors(anim.deCible, anim.aCible, k);
       if (anim.t >= 1) anim = null;
@@ -803,6 +811,7 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   return {
     frame, maj, setCoupe, focus,
     setOpacite(a) { opacite = a; appliquerOpacite(); },
+    setDureeTween(d) { dureeTween = d; },
     selection(z) { choisi = z; surbrillance(); appliquerOpacite(); },
     setEtiquettes(on, noms) {
       calque.innerHTML = ''; etiquettes = [];

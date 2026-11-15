@@ -45,10 +45,11 @@ interface Props {
   onVue: (v: Vue) => void;
   onVoyage3D: () => void;
   tourTexte: string | null;
+  tourActif: boolean;
   onStopTour: () => void;
 }
 
-export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue, onVoyage3D, tourTexte, onStopTour }: Props) {
+export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue, onVoyage3D, tourTexte, tourActif, onStopTour }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const [site, setSite] = useState<Site>('coronaire');
@@ -136,13 +137,18 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
   // Zoom automatique : coupe frontale quand on entre dans une structure interne en 3D.
   useEffect(() => {
     if (vue !== '3d' || !zone) return;
+    if (tourActif) return;
     // Cavités : coupe frontale. Valves et nœuds : pas de coupe, les parois autour deviennent transparentes.
     const POS: Partial<Record<ZoneId, number>> = { od: 0, vd: 0.55, og: -0.6, vg: 0.05 };
     if (POS[zone] !== undefined) { setCoupe('frontale'); setCoupePos(POS[zone]!); }
     else setCoupe('aucune');
-  }, [zone, vue]);
+  }, [zone, vue, tourActif]);
 
   useEffect(() => { if (zone && SITE_DE_ZONE[zone]) setSite(SITE_DE_ZONE[zone]!); }, [zone]);
+  // Pendant la visite guidée, la caméra se déplace lentement d'une étape à l'autre, sans à-coups.
+  useEffect(() => { const r = rendu.current as Coeur3D | null; if (pret && r && 'setDureeTween' in r) r.setDureeTween(tourActif ? 3.4 : 0.9); }, [tourActif, pret, vue]);
+  // Pendant la visite, le cœur reste ouvert et à demi transparent : on voit le sang passer.
+  useEffect(() => { if (vue !== '3d' || !tourActif) return; setCoupe('frontale'); setCoupePos(0.1); setOpacite(0.42); return () => setOpacite(1); }, [tourActif, vue]);
   useEffect(() => { const r = rendu.current as Vaisseau2D | null; if (pret && r && 'setSite' in r) r.setSite(site); }, [site, pret, vue]);
 
   /** Compose une image : fond, scène, légende et signature discrète. */
@@ -216,75 +222,74 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
 
       {/* Phase du cycle */}
       {niveau >= 2 && (
-        <div className="absolute top-3 left-3 flex items-center gap-2 rounded-full bg-ink/75 border border-line px-3 py-1 text-xs text-muted pointer-events-none">
+        <div className="absolute bottom-2.5 left-2 lg:bottom-auto lg:top-14 flex items-center gap-1.5 rounded-full bg-ink/75 border border-line px-2 py-0.5 text-[10.5px] lg:text-xs text-muted pointer-events-none max-w-[38%] lg:max-w-[60%] truncate">
           <span className="w-2 h-2 rounded-full bg-sang animate-pulse" />
           <span ref={phaseRef}>—</span>
         </div>
       )}
       {enreg && (
-        <div className="absolute top-14 left-3 flex items-center gap-2 rounded-full bg-alert/20 border border-alert/60 px-3 py-1 text-xs font-semibold">
+        <div className="absolute top-12 left-2 flex items-center gap-2 rounded-full bg-alert/20 border border-alert/60 px-3 py-1 text-xs font-semibold">
           <span className="w-2.5 h-2.5 rounded-full bg-alert animate-pulse" /> Enregistrement {Math.floor(duree / 60)}:{String(Math.floor(duree % 60)).padStart(2, '0')} · {enreg.son ? 'avec son' : 'sans son (activez le son en haut)'}
         </div>
       )}
       {zone && !zoneDansVue(zone, vue) && !nomSurvol && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-ink/90 border border-accent/40 px-3 py-1 text-xs">
+        <div className="absolute top-12 lg:top-14 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-ink/90 border border-accent/40 px-3 py-1 text-xs">
           <span className="text-muted">{ZONES[zone].nom} se voit dans la vue</span>
           <button onClick={() => onVue(vuePour(zone))} className="font-semibold text-accent">{NOMS_VUES[vuePour(zone)]} →</button>
         </div>
       )}
       {nomSurvol && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-ink/85 border border-line px-3 py-1 text-xs font-semibold pointer-events-none">{nomSurvol} · cliquer pour zoomer</div>
+        <div className="absolute top-12 lg:top-14 left-1/2 -translate-x-1/2 rounded-full bg-ink/85 border border-line px-3 py-1 text-xs font-semibold pointer-events-none">{nomSurvol} · cliquer pour zoomer</div>
       )}
 
-      {/* Outils 3D */}
-      <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
-        <div className="flex gap-1.5">
-          {vue === '3d' && <button onClick={() => setOutils((v) => !v)} className={`btn-icone ${outils ? 'actif' : ''}`} title="Coupe et transparence" aria-label="Outils de coupe et de transparence"><Scissors size={16} /></button>}
-          <button onClick={photo} className="btn-icone" title="Exporter une photo" aria-label="Exporter une photo"><Camera size={16} /></button>
-          <button onClick={video} className={`btn-icone ${enreg ? 'actif' : ''}`} title={enreg ? 'Arrêter l\'enregistrement' : 'Enregistrer une vidéo (avec le son s\'il est activé)'} aria-label="Enregistrer une vidéo">{enreg ? <Square size={14} /> : <Circle size={15} />}</button>
-          <button onClick={() => setEtiquettes((v) => !v)} className={`btn-icone ${etiquettes ? 'actif' : ''}`} title="Étiquettes" aria-label="Afficher les étiquettes"><Tag size={16} /></button>
-          <button onClick={() => { onZone(null); setCoupe('aucune'); const r = rendu.current as Coeur3D | null; if (r && 'vueInitiale' in r) r.vueInitiale(); else rendu.current?.focus(null); }} className="btn-icone" title="Vue d'ensemble" aria-label="Revenir à la vue d'ensemble"><RotateCcw size={16} /></button>
-        </div>
-        {vue === '3d' && pret && outils && (
-          <div className="w-56 rounded-xl bg-ink/80 border border-line p-2.5 space-y-2 text-xs">
-            <label className="flex items-center justify-between gap-2 text-muted cursor-pointer">
-              <span className="flex items-center gap-1.5"><Scissors size={13} /> Ouvrir le cœur (coupe)</span>
-              <input type="checkbox" checked={coupe !== 'aucune'} onChange={(e) => setCoupe(e.target.checked ? 'frontale' : 'aucune')} className="accent-[#e0414e] w-4 h-4" />
-            </label>
-            {coupe !== 'aucune' && <input type="range" min={-1.2} max={1.2} step={0.02} value={coupePos} onChange={(e) => setCoupePos(+e.target.value)} aria-label="Profondeur de la coupe" />}
-            <div className="flex items-center gap-1.5 text-muted pt-1"><Layers size={13} /> Transparence</div>
-            <input type="range" min={0.15} max={1} step={0.01} value={opacite} onChange={(e) => setOpacite(+e.target.value)} aria-label="Opacité des parois" />
+      {/* Barre d'outils : une seule ligne, qui défile horizontalement sur téléphone */}
+      <div className="absolute top-2 left-2 right-2 flex gap-1.5 overflow-x-auto scroll-thin lg:justify-end lg:overflow-visible [&::-webkit-scrollbar]:hidden">
+        {(vue === '3d' || vue === 'coeur2d') && (
+          <div className="seg shrink-0">
+            <button className={vue === 'coeur2d' ? 'actif' : ''} onClick={() => onVue('coeur2d')}>2D</button>
+            <button className={vue === '3d' ? 'actif' : ''} onClick={() => onVue('3d')}>3D</button>
           </div>
         )}
+        {vue === '3d' && !tourActif && (
+          <button onClick={() => setOutils((v) => !v)} className={`btn-outil shrink-0 ${outils ? 'actif' : ''}`} aria-label="Ouvrir le cœur et régler la transparence"><Scissors size={14} /> Ouvrir</button>
+        )}
+        <button onClick={() => setEtiquettes((v) => !v)} className={`btn-outil shrink-0 ${etiquettes ? 'actif' : ''}`} aria-label="Afficher les noms des structures"><Tag size={14} /> Noms</button>
+        <button onClick={photo} className="btn-outil shrink-0" aria-label="Exporter une photo"><Camera size={14} /> Photo</button>
+        <button onClick={video} className={`btn-outil shrink-0 ${enreg ? 'actif' : ''}`} aria-label="Enregistrer une vidéo">{enreg ? <Square size={13} /> : <Circle size={14} />} {enreg ? 'Stop' : 'Vidéo'}</button>
+        <button onClick={() => { onZone(null); setCoupe('aucune'); const r = rendu.current as Coeur3D | null; if (r && 'vueInitiale' in r) r.vueInitiale(); else rendu.current?.focus(null); }} className="btn-outil shrink-0" aria-label="Revenir à la vue d'ensemble"><RotateCcw size={14} /> Tout voir</button>
       </div>
+      {vue === '3d' && pret && outils && !tourActif && (
+        <div className="absolute top-12 right-2 w-52 rounded-xl bg-ink/90 border border-line p-2.5 space-y-2 text-xs fade-in">
+          <label className="flex items-center justify-between gap-2 text-muted cursor-pointer">
+            <span className="flex items-center gap-1.5"><Scissors size={13} /> Couper le cœur en deux</span>
+            <input type="checkbox" checked={coupe !== 'aucune'} onChange={(e) => setCoupe(e.target.checked ? 'frontale' : 'aucune')} className="accent-[#e0414e] w-4 h-4" />
+          </label>
+          {coupe !== 'aucune' && <input type="range" min={-1.2} max={1.2} step={0.02} value={coupePos} onChange={(e) => setCoupePos(+e.target.value)} aria-label="Profondeur de la coupe" />}
+          <div className="flex items-center gap-1.5 text-muted pt-1"><Layers size={13} /> Transparence</div>
+          <input type="range" min={0.15} max={1} step={0.01} value={opacite} onChange={(e) => setOpacite(+e.target.value)} aria-label="Opacité des parois" />
+        </div>
+      )}
 
       {vue === 'vaisseau' && pret && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 seg flex-wrap justify-center max-w-[95%]">
+        <div className="absolute bottom-7 lg:bottom-3 left-1/2 -translate-x-1/2 seg flex-wrap justify-center max-w-[95%] text-[11px]">
           {SITES.map((x) => <button key={x.id} className={site === x.id ? 'actif' : ''} onClick={() => setSite(x.id)}>{x.nom}</button>)}
         </div>
       )}
 
-      {/* Cœur : bascule 2D / 3D */}
-      {(vue === '3d' || vue === 'coeur2d') && (
-        <div className={`absolute left-3 seg ${niveau >= 2 ? 'top-12' : 'top-3'}`}>
-          <button className={vue === 'coeur2d' ? 'actif' : ''} onClick={() => onVue('coeur2d')}>2D</button>
-          <button className={vue === '3d' ? 'actif' : ''} onClick={() => onVue('3d')}>3D</button>
-        </div>
-      )}
       {/* Visite guidée du voyage du sang en 3D */}
       {tourTexte ? (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 max-w-[92%] rounded-2xl bg-ink/90 border border-sang/50 px-4 py-2.5 text-sm flex items-center gap-3 fade-in">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[94%] rounded-2xl bg-ink/90 border border-sang/50 px-3 py-2 text-[12.5px] flex items-center gap-2 fade-in">
           <span className="w-2.5 h-2.5 rounded-full bg-sang animate-pulse shrink-0" /><span>{tourTexte}</span>
           <button onClick={onStopTour} className="text-xs text-muted hover:text-txt shrink-0">Arrêter</button>
         </div>
       ) : (vue === '3d' || vue === '2d') && pret && (
-        <button onClick={onVoyage3D} className="absolute bottom-10 left-1/2 -translate-x-1/2 rounded-full bg-sang/90 hover:bg-sang text-white text-sm font-bold px-4 py-2 inline-flex items-center gap-2 shadow-lg">
-          <Play size={15} /> Voyage du sang en 3D
+        <button onClick={onVoyage3D} className="absolute bottom-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-sang hover:brightness-110 text-white text-[12px] font-bold pl-2.5 pr-3.5 py-1.5 inline-flex items-center gap-1.5 shadow-[0_4px_18px_rgba(224,65,78,.45)]">
+          <Play size={13} fill="currentColor" /> Voir le voyage du sang
         </button>
       )}
 
       {/* Signature discrète dans la scène */}
-      <div className="absolute bottom-2 left-3 text-[9.5px] tracking-wide text-white/25 pointer-events-none select-none">Hémodyssée · Dr O. Sow</div>
+      <div className="absolute bottom-0.5 right-2 text-[9px] tracking-wide text-white/25 pointer-events-none select-none">Hémodyssée · Dr O. Sow</div>
 
       {/* Aide */}
       <div className="absolute bottom-3 right-3 text-[11px] text-dim pointer-events-none hidden lg:flex items-center gap-1.5">
