@@ -12,7 +12,7 @@ function Mesure({ nom, valeur, unite, note, couleur, delta }: { nom: string; val
   return (
     <div className="min-w-0">
       <div className="text-[10.5px] uppercase tracking-wider text-dim font-semibold truncate">{nom}</div>
-      <div className="flex items-baseline gap-1">
+      <div className="flex flex-wrap items-baseline gap-x-1">
         <span className={`num text-[19px] font-semibold ${couleur ?? ''}`}>{valeur}</span>
         {unite && <span className="text-[11px] text-dim">{unite}</span>}
         {delta && <span className="num text-[11px] text-ok ml-0.5">{delta}</span>}

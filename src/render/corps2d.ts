@@ -143,13 +143,27 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
     const mem = clamp(perf.membres, 0, 1);
     g.fillStyle = mix([90, 100, 130], [220, 130, 140], mem); g.globalAlpha = 0.18;
     g.fillRect(222, 600, 52, 290); g.fillRect(326, 600, 52, 290); g.globalAlpha = 1;
+    // Mollets : ils manquent d'oxygène à la marche quand les artères sont rétrécies (claudication).
+    const claudication = mem < 0.85;
+    for (const x of [248, 352]) {
+      g.fillStyle = claudication ? `rgba(160,90,220,${0.35 + 0.3 * Math.abs(Math.sin(temps * 2.5))})` : 'rgba(225,140,150,.22)';
+      g.beginPath(); g.ellipse(x, 765, 15, 36, 0, 0, 7); g.fill();
+    }
+    // Pieds : pâles puis sombres au stade d'ischémie critique.
+    const pied = mem < 0.6 ? mix([40, 30, 45], [200, 190, 200], clamp((mem - 0.3) / 0.3, 0, 1)) : 'rgba(200,175,185,.35)';
+    for (const [x, sx] of [[236, -1], [364, 1]] as const) { g.fillStyle = pied; g.beginPath(); g.ellipse(x + sx * 6, 906, 28, 10, 0, 0, 7); g.fill(); }
 
     // Vaisseaux : la paroi pâlit et durcit avec la rigidité.
     const rig = t?.rigidite ?? 0.1;
     const rouge = mix([214, 66, 76], [226, 206, 170], clamp((rig - 0.2) / 0.7, 0, 1));
     const lv = 1 + 0.12 * (1 - rig) * i.ouvertureSig;
     for (const c of VEI) ligne(c.pts, 6, '#4a6bd0');
-    for (const c of ART) ligne(c.pts, (c.organe === 'coeur' ? 3 : c.organe === 'membres' || c.organe === 'reins' ? 6 : 6) * lv, rouge);
+    for (const c of ART) ligne(c.pts, (c.organe === 'coeur' ? 3 : 6) * lv, rouge);
+    // Bifurcation au genou : artères tibiales jusqu'au pied.
+    for (const [x0, dx] of [[250, -1], [352, 1]] as const) {
+      ligne([[x0, 700], [x0 - 10 * dx * -1, 780], [x0 - 16 * dx * -1, 900]], 3.5 * lv, rouge);
+      ligne([[x0, 700], [x0 + 10 * dx * -1, 780], [x0 + 14 * dx * -1, 900]], 3.5 * lv, rouge);
+    }
     ligne([[322, 282], ...ARCHE.slice(1), ...AORTE_DESC.slice(1)], 11 * lv, rouge);
     ligne([[300, 292], [292, 260], [252, 250]], 5, '#4a6bd0'); ligne([[312, 290], [348, 262]], 5, '#4a6bd0');
     ligne([[252, 275], [300, 300]], 4, '#e04a58'); ligne([[348, 275], [325, 300]], 4, '#e04a58');
@@ -182,6 +196,32 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
     for (let k = 0; k < nL; k++) { const p = pa[(k * 11) % pa.length]; const [x, y] = at(p.c, (p.s + 0.02) % 1); g.beginPath(); g.arc(x - p.o * 3, y, 1.8, 0, 7); g.fill(); }
     if (embole) { const [x, y] = at(ART[0], embole.s); g.fillStyle = '#2a0508'; g.strokeStyle = '#ff6070'; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); g.stroke(); if (embole.arret > 0) texte('Caillot → AVC', x + 44, y); }
 
+    // Œdèmes : l'eau monte dans les jambes comme dans un verre.
+    const oed = e?.oedemes ?? 0;
+    if (oed > 0.03) {
+      const niveauEau = 916 - oed * 320;
+      g.save(); g.beginPath();
+      g.moveTo(198, 600); g.lineTo(214, 900); g.lineTo(276, 900); g.lineTo(298, 600); g.closePath();
+      g.moveTo(302, 600); g.lineTo(324, 900); g.lineTo(386, 900); g.lineTo(402, 600); g.closePath();
+      g.ellipse(230, 906, 28, 10, 0, 0, 7); g.ellipse(370, 906, 28, 10, 0, 0, 7);
+      g.clip();
+      const eau = g.createLinearGradient(0, niveauEau, 0, 916);
+      eau.addColorStop(0, 'rgba(110,170,255,.30)'); eau.addColorStop(1, 'rgba(70,130,255,.55)');
+      g.fillStyle = eau; g.beginPath(); g.moveTo(190, 920);
+      for (let x = 190; x <= 410; x += 6) g.lineTo(x, niveauEau + Math.sin(x * 0.08 + temps * 2.2) * 3);
+      g.lineTo(410, 920); g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(180,215,255,.8)'; g.lineWidth = 1.5; g.beginPath();
+      for (let x = 190; x <= 410; x += 6) { const y = niveauEau + Math.sin(x * 0.08 + temps * 2.2) * 3; x === 190 ? g.moveTo(x, y) : g.lineTo(x, y); }
+      g.stroke(); g.restore();
+      texte(oed > 0.55 ? 'Œdèmes importants : l\'eau monte dans les jambes' : oed > 0.25 ? 'Œdèmes des jambes' : 'Œdèmes des chevilles', 300, Math.max(600, niveauEau - 16), '#a9c8ff');
+    }
+    if ((t?.plaqueMembres ?? 0) > 0.1) {
+      const ips = 1.15 * (1 - 0.9 * (t!.plaqueMembres ** 2));
+      texte(`IPS ${ips.toFixed(2).replace('.', ',')} (normal 1,0 à 1,4)`, 520, 870, ips < 0.9 ? '#fbbf24' : '#e9eef8');
+    }
+    if (claudication) texte('Mollet : manque d\'oxygène à la marche', 520, 765, '#d6b4ff');
+    if (mem < 0.6) texte('Ischémie du pied', 520, 905, '#fb7185');
+
     for (const r of REGIONS) if (r.z === choisi || r.z === survol) {
       g.strokeStyle = r.z === choisi ? 'rgba(125,211,252,.95)' : 'rgba(255,255,255,.4)'; g.lineWidth = 2; g.setLineDash([6, 4]);
       g.beginPath(); g.roundRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8, 10); g.stroke(); g.setLineDash([]);
@@ -190,6 +230,8 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
       texte('Cerveau', 300, 20); texte('Carotides', 360, 150); texte('Poumons', 180, 262); texte('Cœur', 380, 312);
       texte('Aorte', 360, 460); texte('Reins', 440, 408); texte('Artères des jambes', 300, 740);
       texte('Veines caves', 210, 560, '#9ab0ff');
+      texte('A. iliaque', 172, 590); texte('A. fémorale', 168, 660); texte('A. poplitée', 172, 710); texte('A. tibiales', 172, 820);
+      texte('A. rénale', 198, 440); texte('A. sous-clavière', 116, 250);
     }
   }
 

@@ -367,7 +367,6 @@ function BlocTraitement({ patho, niveau, actives, etat, etatSans, traitement, la
                   return <button key={p.id} className={`puce trt ${on ? 'actif' : ''}`} style={{ fontSize: 11.5 }} onClick={() => onRemplacer(on ? Object.fromEntries(Object.entries(traitement).filter(([k]) => !(k in p.doses))) : { ...traitement, ...p.doses })}>{p.nom}</button>;
                 })}
               </div>
-              {m.aVerifier && <div className="text-[10.5px] text-warn/80 mt-1.5">{m.aVerifier}</div>}
             </div>
           ))}
         </div>

@@ -28,4 +28,4 @@ npm run build   # version publiée (déployée automatiquement sur GitHub Pages)
 ## Avertissement
 Modèle simplifié à visée pédagogique : il montre les bons sens de variation et les bons ordres de grandeur, pas l'évolution d'un patient réel. Il ne remplace ni l'avis médical ni le RCP des médicaments.
 
-© 2026 Dr Oumar Sow — tous droits réservés (voir LICENSE).
+© 2026 Dr O. Sow — tous droits réservés (voir LICENSE).

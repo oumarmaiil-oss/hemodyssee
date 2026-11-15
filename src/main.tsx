@@ -1,12 +1,13 @@
 import { createRoot } from 'react-dom/client';
 import App from './ui/App.tsx';
+import { Secours } from './ui/Secours.tsx';
 import './index.css';
 
-createRoot(document.getElementById('root')!).render(<App />);
+createRoot(document.getElementById('root')!).render(<Secours><App /></Secours>);
 
 // Hors ligne et installation sur l'écran d'accueil (version publiée seulement).
 // Signature.
-console.info('%cHémodyssée%c — conçu par le Dr Oumar Sow · version ' + __VERSION__, 'color:#e0414e;font-weight:700;font-size:14px', 'color:inherit');
+console.info('%cHémodyssée%c — conçu par le Dr O. Sow · version ' + __VERSION__, 'color:#e0414e;font-weight:700;font-size:14px', 'color:inherit');
 
 // Les mises à jour arrivent toutes seules : à chaque nouvelle version publiée, l'application
 // (installée ou non) la récupère et propose de recharger.

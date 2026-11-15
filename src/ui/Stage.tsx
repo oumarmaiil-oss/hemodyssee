@@ -104,10 +104,10 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende }
   useEffect(() => { if (!pret) return; rendu.current?.selection(zone); rendu.current?.focus(zone); }, [zone, pret]);
   useEffect(() => {
     if (!pret || vue !== '3d') return;
-    const r = rendu.current as Coeur3D;
-    r.setCoupe(coupe, coupePos);
+    const r = rendu.current as Coeur3D | null;
+    if (r && 'setCoupe' in r) r.setCoupe(coupe, coupePos);
   }, [coupe, coupePos, pret, vue]);
-  useEffect(() => { if (pret && vue === '3d') (rendu.current as Coeur3D).setOpacite(opacite); }, [opacite, pret, vue]);
+  useEffect(() => { const r = rendu.current as Coeur3D | null; if (pret && r && 'setOpacite' in r) r.setOpacite(opacite); }, [opacite, pret, vue]);
   useEffect(() => {
     if (!pret) return;
     const PRINCIPALES: ZoneId[] = ['od', 'vd', 'og', 'vg', 'aorte', 'artPulm', 'veinesCaves', 'veinesPulm', 'coronaires', 'poumons', 'cerveau', 'reins', 'membres', 'carotides'];
@@ -126,7 +126,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende }
   }, [zone, vue]);
 
   useEffect(() => { if (zone && SITE_DE_ZONE[zone]) setSite(SITE_DE_ZONE[zone]!); }, [zone]);
-  useEffect(() => { if (pret && vue === 'vaisseau') (rendu.current as Vaisseau2D).setSite(site); }, [site, pret, vue]);
+  useEffect(() => { const r = rendu.current as Vaisseau2D | null; if (pret && r && 'setSite' in r) r.setSite(site); }, [site, pret, vue]);
 
   /** Compose une image : fond, scène, légende et signature discrète. */
   const composer = (src: HTMLCanvasElement, dst: HTMLCanvasElement) => {
@@ -140,7 +140,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende }
     g.font = `600 ${u}px "Plus Jakarta Sans", system-ui`; g.textBaseline = 'alphabetic';
     if (legendeRef.current) { g.fillStyle = 'rgba(7,10,18,.65)'; const tw = g.measureText(legendeRef.current).width; g.fillRect(u * 0.8, u * 0.8, tw + u * 1.2, u * 1.9); g.fillStyle = '#e9eef8'; g.fillText(legendeRef.current, u * 1.4, u * 2.1); }
     g.globalAlpha = 0.55; g.font = `500 ${Math.round(u * 0.85)}px "Plus Jakarta Sans", system-ui`; g.textAlign = 'right';
-    g.fillStyle = '#ffffff'; g.fillText('Hémodyssée · Dr Oumar Sow', w - u, h - u); g.textAlign = 'left'; g.globalAlpha = 1;
+    g.fillStyle = '#ffffff'; g.fillText('Hémodyssée · Dr O. Sow', w - u, h - u); g.textAlign = 'left'; g.globalAlpha = 1;
   };
   const nomFichier = (ext: string) => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `hemodyssee-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.${ext}`; };
   const telecharger = (blob: Blob, nom: string) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nom; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
@@ -219,7 +219,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende }
           <button onClick={photo} className="btn-icone" title="Exporter une photo" aria-label="Exporter une photo"><Camera size={16} /></button>
           <button onClick={video} className={`btn-icone ${enreg ? 'actif' : ''}`} title={enreg ? 'Arrêter l\'enregistrement' : 'Enregistrer une vidéo (avec le son s\'il est activé)'} aria-label="Enregistrer une vidéo">{enreg ? <Square size={14} /> : <Circle size={15} />}</button>
           <button onClick={() => setEtiquettes((v) => !v)} className={`btn-icone ${etiquettes ? 'actif' : ''}`} title="Étiquettes" aria-label="Afficher les étiquettes"><Tag size={16} /></button>
-          <button onClick={() => { onZone(null); setCoupe('aucune'); if (vue === '3d') (rendu.current as Coeur3D | null)?.vueInitiale(); else rendu.current?.focus(null); }} className="btn-icone" title="Vue d'ensemble" aria-label="Revenir à la vue d'ensemble"><RotateCcw size={16} /></button>
+          <button onClick={() => { onZone(null); setCoupe('aucune'); const r = rendu.current as Coeur3D | null; if (r && 'vueInitiale' in r) r.vueInitiale(); else rendu.current?.focus(null); }} className="btn-icone" title="Vue d'ensemble" aria-label="Revenir à la vue d'ensemble"><RotateCcw size={16} /></button>
         </div>
         {vue === '3d' && pret && outils && (
           <div className="w-56 rounded-xl bg-ink/80 border border-line p-2.5 space-y-2 text-xs">

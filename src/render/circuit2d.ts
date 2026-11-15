@@ -253,7 +253,15 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
     capillaires(500, 632, 200, 40, '#e04a58', '#5b7fd6');
     // Jambes.
     const cJ = mixC(ISCH, [225, 140, 150], clamp(perf.membres, 0, 1));
-    for (const x of [470, 530]) { g.fillStyle = rgb(cJ, 0.35); g.beginPath(); g.roundRect(x - 24, 680, 48, 84, 18); g.fill(); }
+    for (const x of [470, 530]) {
+      g.fillStyle = rgb(cJ, 0.35); g.beginPath(); g.roundRect(x - 24, 680, 48, 84, 18); g.fill();
+      const oed = e?.oedemes ?? 0;
+      if (oed > 0.03) {
+        const yE = 764 - oed * 80;
+        g.save(); g.beginPath(); g.roundRect(x - 24, 680, 48, 84, 18); g.clip();
+        g.fillStyle = 'rgba(90,150,255,.45)'; g.fillRect(x - 24, yE + Math.sin(temps * 2 + x) * 2, 48, 90); g.restore();
+      }
+    }
     capillaires(500, 708, 200, 48, '#e04a58', '#5b7fd6');
 
     // ── Cœur ──

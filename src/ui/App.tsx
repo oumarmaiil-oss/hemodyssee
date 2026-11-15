@@ -142,7 +142,7 @@ export default function App() {
       </header>
 
       {/* Corps */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_420px]">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 grid gap-3 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col gap-3 min-w-0">
           <div className="h-[56vh] min-h-[340px] lg:h-[calc(100vh-190px)] lg:min-h-[520px]">
             <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} legende={legende} />
@@ -157,7 +157,7 @@ export default function App() {
           <Moniteur e={etatScene} niveau={niveau} />
         </section>
 
-        <aside className="lg:h-[calc(100vh-88px)] lg:sticky lg:top-[68px] flex flex-col min-h-0 rounded-2xl border border-line bg-panel">
+        <aside className="min-w-0 lg:h-[calc(100vh-88px)] lg:sticky lg:top-[68px] flex flex-col min-h-0 rounded-2xl border border-line bg-panel">
           <nav className="grid grid-cols-3 gap-1 p-1.5 border-b border-line" role="tablist">
             {ONGLETS.map((o) => (
               <button key={o.id} role="tab" aria-selected={onglet === o.id} onClick={() => setOnglet(o.id)}
@@ -180,7 +180,7 @@ export default function App() {
         </aside>
       </main>
 
-      <footer className="text-center text-[11px] text-dim pb-4 px-4">Hémodyssée · conçu par le Dr Oumar Sow · Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</footer>
+      <footer className="text-center text-[11px] text-dim pb-4 px-4">Hémodyssée · conçu par le Dr O. Sow · Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</footer>
 
       {accueil && <Accueil onChoix={choisirNiveau} />}
       {apropos && <APropos onClose={() => setApropos(false)} labo={labo} />}
@@ -260,7 +260,7 @@ function APropos({ onClose, labo }: { onClose: () => void; labo: boolean }) {
           </ul>
         </div>
         <div><div className="titre-section mb-1">Exporter</div><p className="text-muted">Boutons appareil photo et enregistrement sur la scène : image PNG, ou vidéo (MP4 ou WebM selon le navigateur) avec les bruits du cœur si le son est activé.</p></div>
-        <p className="text-dim text-xs">Conçu par le Dr Oumar Sow, pharmacien · WhatsApp @{WHATSAPP} · version {__VERSION__}</p>
+        <p className="text-dim text-xs">Conçu par le Dr O. Sow, pharmacien · WhatsApp @{WHATSAPP} · version {__VERSION__}</p>
       </div>
     </div>
   );

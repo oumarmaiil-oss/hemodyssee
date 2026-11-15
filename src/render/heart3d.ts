@@ -138,8 +138,9 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   const pickables: THREE.Object3D[] = [];
   const reg = (z: ZoneId, m: THREE.MeshStandardMaterial) => { if (!matsZone.has(z)) matsZone.set(z, []); matsZone.get(z)!.push(m); };
   const mat = (o: THREE.MeshPhysicalMaterialParameters, z?: ZoneId, clip = true) => {
+    const { clearcoat: _c, clearcoatRoughness: _cr, sheen: _s, sheenRoughness: _sr, sheenColor: _sc, ...std } = o;
     const m: THREE.MeshStandardMaterial = leger
-      ? new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.02, ...o })
+      ? new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0.02, ...std })
       : new THREE.MeshPhysicalMaterial({ roughness: 0.5, metalness: 0.0, clearcoat: 0.6, clearcoatRoughness: 0.28, sheen: 0.12, sheenRoughness: 0.7, sheenColor: new THREE.Color(0x802030), ...o });
     m.userData.zone = z;
     if (z) reg(z, m);

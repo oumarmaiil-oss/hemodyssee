@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Copy, MessageCircle, X } from 'lucide-react';
 
-export const WHATSAPP = 'drSOWOUMAR';
+export const WHATSAPP = 'DRSOWOUMAR';
 
 const TYPES = ['Bug', 'Erreur médicale', 'Suggestion', 'Autre'] as const;
 
@@ -24,7 +24,7 @@ export function Signalement({ contexte, onClose }: { contexte: string; onClose: 
           <a href={lien} target="_blank" rel="noopener noreferrer" className="flex-1 rounded-xl bg-[#25d366] text-[#062b14] font-bold text-sm py-2.5 inline-flex items-center justify-center gap-2"><MessageCircle size={16} /> Envoyer sur WhatsApp</a>
           <button onClick={copier} className="rounded-xl border border-line px-4 text-sm font-semibold inline-flex items-center gap-2"><Copy size={15} /> {copie ? 'Copié' : 'Copier'}</button>
         </div>
-        <p className="text-[11px] text-dim">Envoyé au Dr Oumar Sow (WhatsApp @{WHATSAPP}).</p>
+        <p className="text-[11px] text-dim">Envoyé au Dr O. Sow (WhatsApp @{WHATSAPP}).</p>
       </div>
     </div>
   );

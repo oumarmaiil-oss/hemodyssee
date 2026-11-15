@@ -159,6 +159,11 @@ export function calculer(base: Terrain, tr: Traitement = {}, opt: OptionsCalcul 
 
   const { effets, alertes } = surveiller(base, tr, { fc, pas, pad, pog, fe, pam }, fraction);
   const thrombusOG = (t.rythme === 'fa' || t.rm > 0.6) && !(tr.aod && fraction > 0.5);
+  // Œdèmes des jambes : congestion veineuse (pression veineuse, excès d'eau) ou effet de l'amlodipine,
+  // atténué par un bloqueur du SRAA.
+  const eIca = effetDose(tr.ica) * fraction;
+  const oedIca = eIca > 0 ? (0.12 + 0.18 * Math.max(0, eIca - 1) * 4) * (blocageSRAA(tr) > 0 && fraction > 0.5 ? 0.4 : 1) : 0;
+  const oedemes = clamp(Math.max(0, (pvc - 7) / 10) + Math.min(0.45, Math.max(0, t.volemie - 1.03) * 5) + oedIca, 0, 1);
 
   return {
     fc: Math.round(fc), fcOreillettes, pas: Math.round(pas), pad: Math.round(pad), pam: Math.round(pam),
@@ -167,7 +172,7 @@ export function calculer(base: Terrain, tr: Traitement = {}, opt: OptionsCalcul 
     pvc: Math.round(pvc), postcharge: t.rvs * (1 + 1.6 * t.ra * t.ra), ldl: t.ldl,
     perfusion: { cerveau, coeur, reins, membres, poumons },
     risques: { avc, coronaire, ic: icRisque, rein },
-    effets, alertes, terrain: t, thrombusOG,
+    effets, alertes, terrain: t, thrombusOG, oedemes,
   };
 }
 
