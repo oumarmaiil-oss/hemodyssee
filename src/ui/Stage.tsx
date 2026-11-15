@@ -139,8 +139,9 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende }
     const u = Math.max(12, Math.round(w / 90));
     g.font = `600 ${u}px "Plus Jakarta Sans", system-ui`; g.textBaseline = 'alphabetic';
     if (legendeRef.current) { g.fillStyle = 'rgba(7,10,18,.65)'; const tw = g.measureText(legendeRef.current).width; g.fillRect(u * 0.8, u * 0.8, tw + u * 1.2, u * 1.9); g.fillStyle = '#e9eef8'; g.fillText(legendeRef.current, u * 1.4, u * 2.1); }
-    g.globalAlpha = 0.55; g.font = `500 ${Math.round(u * 0.85)}px "Plus Jakarta Sans", system-ui`; g.textAlign = 'right';
-    g.fillStyle = '#ffffff'; g.fillText('Hémodyssée · Dr O. Sow', w - u, h - u); g.textAlign = 'left'; g.globalAlpha = 1;
+    // Signature discrète, en bas à droite.
+    g.globalAlpha = 0.3; g.font = `500 ${Math.max(10, Math.round(u * 0.62))}px "Plus Jakarta Sans", system-ui`; g.textAlign = 'right';
+    g.fillStyle = '#ffffff'; g.fillText('Hémodyssée · Dr O. Sow', w - u * 0.8, h - u * 0.7); g.textAlign = 'left'; g.globalAlpha = 1;
   };
   const nomFichier = (ext: string) => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `hemodyssee-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.${ext}`; };
   const telecharger = (blob: Blob, nom: string) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nom; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
@@ -239,6 +240,9 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende }
           {SITES.map((x) => <button key={x.id} className={site === x.id ? 'actif' : ''} onClick={() => setSite(x.id)}>{x.nom}</button>)}
         </div>
       )}
+
+      {/* Signature discrète dans la scène */}
+      <div className="absolute bottom-2 left-3 text-[9.5px] tracking-wide text-white/25 pointer-events-none select-none">Hémodyssée · Dr O. Sow</div>
 
       {/* Aide */}
       <div className="absolute bottom-3 right-3 text-[11px] text-dim pointer-events-none hidden lg:flex items-center gap-1.5">

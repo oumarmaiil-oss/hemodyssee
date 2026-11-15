@@ -180,7 +180,7 @@ export default function App() {
         </aside>
       </main>
 
-      <footer className="text-center text-[11px] text-dim pb-4 px-4">Hémodyssée · conçu par le Dr O. Sow · Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</footer>
+      <footer className="text-center text-[11px] text-dim pb-4 px-4">Hémodyssée · Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</footer>
 
       {accueil && <Accueil onChoix={choisirNiveau} />}
       {apropos && <APropos onClose={() => setApropos(false)} labo={labo} />}
