@@ -260,7 +260,14 @@ function APropos({ onClose, labo }: { onClose: () => void; labo: boolean }) {
           </ul>
         </div>
         <div><div className="titre-section mb-1">Exporter</div><p className="text-muted">Boutons appareil photo et enregistrement sur la scène : image PNG, ou vidéo (MP4 ou WebM selon le navigateur) avec les bruits du cœur si le son est activé.</p></div>
-        <p className="text-dim text-xs">Conçu par le Dr O. Sow, pharmacien · WhatsApp @{WHATSAPP} · version {__VERSION__}</p>
+        <p className="text-dim text-xs flex flex-wrap items-center gap-x-1.5">
+          Conçu par le Dr O. Sow · Dakar, Sénégal
+          <svg viewBox="0 0 30 20" width="18" height="12" aria-label="Drapeau du Sénégal" role="img" className="inline rounded-[2px]">
+            <rect width="10" height="20" fill="#00853F" /><rect x="10" width="10" height="20" fill="#FDEF42" /><rect x="20" width="10" height="20" fill="#E31B23" />
+            <polygon fill="#00853F" points="15,6.2 15.95,9.1 19,9.1 16.53,10.9 17.47,13.8 15,12 12.53,13.8 13.47,10.9 11,9.1 14.05,9.1" />
+          </svg>
+          · WhatsApp @{WHATSAPP} · version {__VERSION__}
+        </p>
       </div>
     </div>
   );
