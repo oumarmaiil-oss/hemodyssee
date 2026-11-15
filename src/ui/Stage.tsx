@@ -1,6 +1,6 @@
 /** Scène principale : cœur 3D ou voyage du sang 2D, animés par une horloge commune. */
 import { useEffect, useRef, useState } from 'react';
-import { Box, Eye, Layers, RotateCcw, Scissors, Tag } from 'lucide-react';
+import { Box, Camera, Circle, Eye, Layers, RotateCcw, Scissors, Square, Tag } from 'lucide-react';
 import { Horloge, NOMS_PHASES, type Phase } from '../core/clock.ts';
 import type { Son } from '../core/audio.ts';
 import type { Etat, Niveau } from '../core/types.ts';
@@ -28,9 +28,10 @@ interface Props {
   onZone: (z: ZoneId | null) => void;
   son: Son;
   ralenti: boolean;
+  legende: string;
 }
 
-export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti }: Props) {
+export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const [site, setSite] = useState<Site>('coronaire');
@@ -45,7 +46,20 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti }: Props) 
   const [opacite, setOpacite] = useState(1);
   const [etiquettes, setEtiquettes] = useState(niveau === 1);
   const [outils, setOutils] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 900);
+  const visible = useRef(true);
+  const captureRef = useRef<((src: HTMLCanvasElement) => void) | null>(null);
+  const legendeRef = useRef(legende);
+  legendeRef.current = legende;
+  const [enreg, setEnreg] = useState<{ debut: number; son: boolean } | null>(null);
+  const [duree, setDuree] = useState(0);
+  const recorder = useRef<MediaRecorder | null>(null);
   const onZoneRef = useRef(onZone);
+  // Pas de rendu quand la scène est hors de l'écran (défilement sur mobile) : économise batterie et processeur.
+  useEffect(() => {
+    const io = new IntersectionObserver(([en]) => { visible.current = en.isIntersecting; });
+    if (hote.current) io.observe(hote.current);
+    return () => io.disconnect();
+  }, []);
   onZoneRef.current = onZone;
 
   etatRef.current = etat;
@@ -77,7 +91,8 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti }: Props) 
     const boucle = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
       const i = horloge.current.avancer(dt);
-      rendu.current?.frame(i, dt);
+      if (visible.current || captureRef.current) rendu.current?.frame(i, dt);
+      if (captureRef.current) { const c = hote.current?.querySelector('canvas'); if (c) captureRef.current(c); }
       son.tick(i, etatRef.current);
       if (i.phase !== dernierePhase && phaseRef.current) { dernierePhase = i.phase; phaseRef.current.textContent = NOMS_PHASES[i.phase]; }
       raf = requestAnimationFrame(boucle);
@@ -113,6 +128,66 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti }: Props) 
   useEffect(() => { if (zone && SITE_DE_ZONE[zone]) setSite(SITE_DE_ZONE[zone]!); }, [zone]);
   useEffect(() => { if (pret && vue === 'vaisseau') (rendu.current as Vaisseau2D).setSite(site); }, [site, pret, vue]);
 
+  /** Compose une image : fond, scène, légende et signature discrète. */
+  const composer = (src: HTMLCanvasElement, dst: HTMLCanvasElement) => {
+    const g = dst.getContext('2d')!;
+    const w = dst.width, h = dst.height;
+    const fond = g.createRadialGradient(w / 2, h * 0.35, 0, w / 2, h / 2, Math.max(w, h) * 0.7);
+    fond.addColorStop(0, '#1b1630'); fond.addColorStop(0.55, '#0b0f1c'); fond.addColorStop(1, '#070a12');
+    g.fillStyle = fond; g.fillRect(0, 0, w, h);
+    g.drawImage(src, 0, 0, w, h);
+    const u = Math.max(12, Math.round(w / 90));
+    g.font = `600 ${u}px "Plus Jakarta Sans", system-ui`; g.textBaseline = 'alphabetic';
+    if (legendeRef.current) { g.fillStyle = 'rgba(7,10,18,.65)'; const tw = g.measureText(legendeRef.current).width; g.fillRect(u * 0.8, u * 0.8, tw + u * 1.2, u * 1.9); g.fillStyle = '#e9eef8'; g.fillText(legendeRef.current, u * 1.4, u * 2.1); }
+    g.globalAlpha = 0.55; g.font = `500 ${Math.round(u * 0.85)}px "Plus Jakarta Sans", system-ui`; g.textAlign = 'right';
+    g.fillStyle = '#ffffff'; g.fillText('Hémodyssée · Dr Oumar Sow', w - u, h - u); g.textAlign = 'left'; g.globalAlpha = 1;
+  };
+  const nomFichier = (ext: string) => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `hemodyssee-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.${ext}`; };
+  const telecharger = (blob: Blob, nom: string) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nom; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
+
+  const photo = () => {
+    captureRef.current = (src) => {
+      captureRef.current = null;
+      const dst = document.createElement('canvas'); dst.width = src.width; dst.height = src.height;
+      composer(src, dst);
+      dst.toBlob((b) => b && telecharger(b, nomFichier('png')), 'image/png');
+    };
+  };
+
+  const video = () => {
+    if (recorder.current) { recorder.current.stop(); return; }
+    const src = hote.current?.querySelector('canvas'); if (!src) return;
+    const k = Math.min(1, 1920 / src.width);
+    const dst = document.createElement('canvas'); dst.width = Math.round(src.width * k / 2) * 2; dst.height = Math.round(src.height * k / 2) * 2;
+    const flux = dst.captureStream(30);
+    const audio = son.flux();
+    audio?.getAudioTracks().forEach((t) => flux.addTrack(t));
+    // MP4 H.264 en priorité (lu partout, WhatsApp compris) ; sinon WebM ; « video/mp4 » seul en dernier (Safari).
+    const types = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1,opus', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+    const type = types.find((t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t));
+    if (!type) { alert('L\'enregistrement vidéo n\'est pas pris en charge par ce navigateur.'); return; }
+    const rec = new MediaRecorder(flux, { mimeType: type, videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000 });
+    const morceaux: Blob[] = [];
+    rec.ondataavailable = (e) => { if (e.data.size) morceaux.push(e.data); };
+    rec.onstop = () => {
+      captureRef.current = null; recorder.current = null; setEnreg(null);
+      telecharger(new Blob(morceaux, { type: type.split(';')[0] }), nomFichier(type.includes('mp4') ? 'mp4' : 'webm'));
+    };
+    captureRef.current = (c) => composer(c, dst);
+    rec.start(1000);
+    recorder.current = rec;
+    setEnreg({ debut: performance.now(), son: !!audio });
+  };
+  useEffect(() => {
+    if (!enreg) return;
+    const t = setInterval(() => {
+      const s2 = (performance.now() - enreg.debut) / 1000; setDuree(s2);
+      if (s2 >= 120) recorder.current?.stop();
+    }, 250);
+    return () => clearInterval(t);
+  }, [enreg]);
+  useEffect(() => () => recorder.current?.stop(), []);
+
   const nomSurvol = survol ? ZONES[survol].nom : null;
 
   return (
@@ -128,6 +203,11 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti }: Props) 
           <span ref={phaseRef}>—</span>
         </div>
       )}
+      {enreg && (
+        <div className="absolute top-14 left-3 flex items-center gap-2 rounded-full bg-alert/20 border border-alert/60 px-3 py-1 text-xs font-semibold">
+          <span className="w-2.5 h-2.5 rounded-full bg-alert animate-pulse" /> Enregistrement {Math.floor(duree / 60)}:{String(Math.floor(duree % 60)).padStart(2, '0')} · {enreg.son ? 'avec son' : 'sans son (activez le son en haut)'}
+        </div>
+      )}
       {nomSurvol && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-ink/85 border border-line px-3 py-1 text-xs font-semibold pointer-events-none">{nomSurvol} · cliquer pour zoomer</div>
       )}
@@ -136,20 +216,18 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti }: Props) 
       <div className="absolute top-3 right-3 flex flex-col items-end gap-2">
         <div className="flex gap-1.5">
           {vue === '3d' && <button onClick={() => setOutils((v) => !v)} className={`btn-icone ${outils ? 'actif' : ''}`} title="Coupe et transparence" aria-label="Outils de coupe et de transparence"><Scissors size={16} /></button>}
+          <button onClick={photo} className="btn-icone" title="Exporter une photo" aria-label="Exporter une photo"><Camera size={16} /></button>
+          <button onClick={video} className={`btn-icone ${enreg ? 'actif' : ''}`} title={enreg ? 'Arrêter l\'enregistrement' : 'Enregistrer une vidéo (avec le son s\'il est activé)'} aria-label="Enregistrer une vidéo">{enreg ? <Square size={14} /> : <Circle size={15} />}</button>
           <button onClick={() => setEtiquettes((v) => !v)} className={`btn-icone ${etiquettes ? 'actif' : ''}`} title="Étiquettes" aria-label="Afficher les étiquettes"><Tag size={16} /></button>
           <button onClick={() => { onZone(null); setCoupe('aucune'); if (vue === '3d') (rendu.current as Coeur3D | null)?.vueInitiale(); else rendu.current?.focus(null); }} className="btn-icone" title="Vue d'ensemble" aria-label="Revenir à la vue d'ensemble"><RotateCcw size={16} /></button>
         </div>
         {vue === '3d' && pret && outils && (
-          <div className="w-52 rounded-xl bg-ink/80 border border-line p-2.5 space-y-2 text-xs">
-            <div className="flex items-center gap-1.5 text-muted"><Scissors size={13} /> Coupe</div>
-            <div className="grid grid-cols-4 gap-1">
-              {(['aucune', 'frontale', 'sagittale', 'transversale'] as Coupe[]).map((c) => (
-                <button key={c} onClick={() => setCoupe(c)} className={`rounded-md py-1 text-[10.5px] border ${coupe === c ? 'bg-sang/25 border-sang/60 text-txt' : 'border-line text-muted hover:text-txt'}`}>
-                  {c === 'aucune' ? 'Non' : c === 'frontale' ? '4 cav.' : c === 'sagittale' ? 'Sagit.' : 'Transv.'}
-                </button>
-              ))}
-            </div>
-            {coupe !== 'aucune' && <input type="range" min={-1.2} max={1.2} step={0.02} value={coupePos} onChange={(e) => setCoupePos(+e.target.value)} aria-label="Position de la coupe" />}
+          <div className="w-56 rounded-xl bg-ink/80 border border-line p-2.5 space-y-2 text-xs">
+            <label className="flex items-center justify-between gap-2 text-muted cursor-pointer">
+              <span className="flex items-center gap-1.5"><Scissors size={13} /> Ouvrir le cœur (coupe)</span>
+              <input type="checkbox" checked={coupe !== 'aucune'} onChange={(e) => setCoupe(e.target.checked ? 'frontale' : 'aucune')} className="accent-[#e0414e] w-4 h-4" />
+            </label>
+            {coupe !== 'aucune' && <input type="range" min={-1.2} max={1.2} step={0.02} value={coupePos} onChange={(e) => setCoupePos(+e.target.value)} aria-label="Profondeur de la coupe" />}
             <div className="flex items-center gap-1.5 text-muted pt-1"><Layers size={13} /> Transparence</div>
             <input type="range" min={0.15} max={1} step={0.01} value={opacite} onChange={(e) => setOpacite(+e.target.value)} aria-label="Opacité des parois" />
           </div>

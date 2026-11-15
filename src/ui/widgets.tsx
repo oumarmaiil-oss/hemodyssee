@@ -22,11 +22,11 @@ function Mesure({ nom, valeur, unite, note, couleur, delta }: { nom: string; val
   );
 }
 
-export function Moniteur({ e, niveau, ref0 }: { e: Etat; niveau: Niveau; ref0?: Etat | null }) {
+export function Moniteur({ e, niveau, ref0, compact }: { e: Etat; niveau: Niveau; ref0?: Etat | null; compact?: boolean }) {
   const pa = statutPA(e.pas, e.pad);
   const d = (a: number, b: number | undefined, f = (x: number) => String(Math.round(x))) => (b !== undefined && Math.round(a) !== Math.round(b) ? `${a - b > 0 ? '+' : ''}${f(a - b)}` : undefined);
   return (
-    <div className="carte p-3 grid grid-cols-3 sm:grid-cols-6 gap-x-4 gap-y-2" data-testid="moniteur">
+    <div className={`carte p-3 grid gap-x-4 gap-y-2 ${compact ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-6'}`} data-testid="moniteur">
       <Mesure nom="Tension" valeur={`${e.pas}/${e.pad}`} unite="mmHg" note={pa.t} couleur={pa.c} delta={d(e.pas, ref0?.pas)} />
       <Mesure nom="Pouls" valeur={String(e.fc)} unite="/min" note={e.terrain.rythme === 'fa' ? 'Irrégulier' : e.terrain.rythme === 'bav3' ? 'Très lent' : undefined} couleur={e.fc < 50 || e.fc > 100 ? 'text-warn' : undefined} delta={d(e.fc, ref0?.fc)} />
       {niveau >= 2 ? (

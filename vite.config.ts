@@ -82,6 +82,7 @@ export default defineConfig(() => {
   return {
     base: '/hemodyssee/',
     plugins: [react(), tailwindcss(), serviceWorker()],
+    define: { __VERSION__: JSON.stringify(new Date().toISOString().slice(0, 10)) },
     build: {
       // three.js est isolé dans un fichier chargé à la demande (vues 3D).
       chunkSizeWarningLimit: 700,

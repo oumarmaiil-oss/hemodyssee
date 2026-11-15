@@ -102,3 +102,22 @@ test('contenu complet et cohérent', () => {
   assert.equal(CLASSES.length, 13);
   for (const m of MARQUES) assert.ok(m.presentations.length > 0);
 });
+
+import { evaluerPathologie, classesEnPlus } from './evaluation.ts';
+
+test('évaluation : monothérapie insuffisante dans l\'HTA, bithérapie qui contrôle', () => {
+  const act = [{ id: 'hta', s: 0.7 }];
+  const t = construireTerrain(TERRAIN_NORMAL, act);
+  const mono = evaluerPathologie('hta', act, calculer(t, { ica: 1 }), { ica: 1 });
+  assert.ok(mono.some((p) => !p.ok && p.texte.includes('Monothérapie')));
+  const bi = evaluerPathologie('hta', act, calculer(t, { ica: 1, iec: 1 }), { ica: 1, iec: 1 });
+  assert.ok(bi.every((p) => p.ok));
+});
+
+test('évaluation : IC à FE réduite compte les piliers, classes ajoutées sans indication', () => {
+  const act = [{ id: 'icfer', s: 0.7 }];
+  const t = construireTerrain(TERRAIN_NORMAL, act);
+  const tr = { bb: 0.5, arni: 0.5 };
+  assert.ok(evaluerPathologie('icfer', act, calculer(t, tr), tr).some((p) => p.texte.startsWith('2 piliers')));
+  assert.deepEqual(classesEnPlus([{ id: 'dyslip', s: 0.7 }], { statine: 1, aod: 1 }), ['aod']);
+});

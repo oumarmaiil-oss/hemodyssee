@@ -5,8 +5,9 @@ import type { ClasseId, Etat, Niveau, Terrain, Traitement } from '../core/types.
 import { evoluer, type Scenario } from '../core/engine.ts';
 import { ausculter } from '../core/audio.ts';
 import { ZONES, type ZoneId } from '../content/zones.ts';
-import { FAMILLES, PATHOLOGIES, PATHO_PAR_ID, SEVERITES, type Famille, type PathoActive } from '../content/pathologies.ts';
-import { CLASSES, CLASSE_PAR_ID, DOSES, GROUPES, type GroupeClasse } from '../content/classes.ts';
+import { FAMILLES, PATHOLOGIES, PATHO_PAR_ID, SEVERITES, type Famille, type PathoActive, type Pathologie } from '../content/pathologies.ts';
+import { classesEnPlus, evaluerPathologie } from '../core/evaluation.ts';
+import { CLASSES, CLASSE_PAR_ID, DOSES, type Classe } from '../content/classes.ts';
 import { LABO, MARQUES } from '../content/labo.ts';
 import { GraphiqueEvolution, LEGENDE_SCENARIOS, Moniteur, Risques } from './widgets.tsx';
 import { zoneEn3D, type Vue } from './Stage.tsx';
@@ -171,121 +172,195 @@ export const SCENARIOS_RAPIDES: { nom: string; actives: PathoActive[]; tr?: Trai
   { nom: 'Insuffisance cardiaque', actives: [{ id: 'icfer', s: 0.7 }] },
 ];
 
-export function PanneauMaladies({ niveau, actives, focus, onFocus, onToggle, onSeverite, onScenario, onProposer, traitement }: {
-  niveau: Niveau; actives: PathoActive[]; focus: string | null; traitement: Traitement;
+/** Ordre des familles selon ce qu'on regarde : on montre d'abord les maladies de la vue. */
+function ordreFamilles(vue: Vue, zone: ZoneId | null): Famille[] {
+  const tout: Famille[] = ['valves', 'myocarde', 'coronaires', 'rythme', 'arteres', 'lipides', 'organes'];
+  let tete: Famille[] = [];
+  if (vue === 'vaisseau') tete = ['lipides', 'arteres', 'coronaires'];
+  else if (vue === 'corps') tete = ['organes', 'arteres', 'lipides'];
+  else if (vue === '2d') tete = ['arteres', 'lipides', 'coronaires'];
+  if (zone?.startsWith('valve')) tete = ['valves', ...tete];
+  else if (zone === 'noeudSinusal' || zone === 'noeudAV') tete = ['rythme', ...tete];
+  else if (zone === 'coronaires') tete = ['coronaires', ...tete];
+  else if (zone === 'vg' || zone === 'vd') tete = ['myocarde', ...tete];
+  else if (zone && ['cerveau', 'reins', 'poumons', 'membres'].includes(zone)) tete = ['organes', ...tete];
+  return [...new Set([...tete, ...tout])];
+}
+
+const NOM_VUE: Record<Vue, string> = { '3d': 'le cœur', '2d': 'le voyage du sang', corps: 'le corps', vaisseau: 'le vaisseau' };
+
+export function PanneauMaladies(props: {
+  niveau: Niveau; vue: Vue; zone: ZoneId | null; actives: PathoActive[]; focus: string | null; traitement: Traitement;
+  etat: Etat; etatSans: Etat; labo: boolean;
   onFocus: (id: string | null) => void; onToggle: (id: string) => void; onSeverite: (id: string, s: number) => void;
-  onScenario: (a: PathoActive[]) => void; onProposer: (id: string) => void;
+  onScenario: (a: PathoActive[]) => void; onDose: (c: ClasseId, d: number) => void; onRemplacer: (t: Traitement) => void;
 }) {
+  const { niveau, vue, zone, actives, focus, onFocus, onToggle, onSeverite, onScenario } = props;
   const f = focus ? PATHO_PAR_ID[focus] : null;
-  const familles = Object.keys(FAMILLES) as Famille[];
+  const familles = ordreFamilles(vue, zone);
+  const dansZone = zone ? PATHOLOGIES.filter((p) => p.zones.includes(zone)) : [];
+  const puce = (p: Pathologie) => {
+    const on = actives.some((a) => a.id === p.id);
+    return <button key={p.id} className={`puce ${on ? 'actif' : ''} ${focus === p.id ? 'ring-1 ring-accent/60' : ''}`} onClick={() => { if (!on) onToggle(p.id); onFocus(p.id); }}>{on && <Check size={13} />}{niveau === 1 ? p.court : p.nom}</button>;
+  };
   return (
     <div className="space-y-4 fade-in">
-      <div>
-        <div className="titre-section mb-2">Cas prêts à présenter</div>
-        <div className="flex flex-wrap gap-1.5">
-          {SCENARIOS_RAPIDES.map((s) => <button key={s.nom} className="puce" onClick={() => onScenario(s.actives)}><Sparkles size={13} /> {s.nom}</button>)}
-          {actives.length > 0 && <button className="puce" onClick={() => onScenario([])}><X size={13} /> Sujet sain</button>}
-        </div>
-      </div>
-      {actives.length > 0 && (
-        <div className="space-y-2">
-          <div className="titre-section">Simulées en ce moment</div>
-          {actives.map((a) => {
-            const p = PATHO_PAR_ID[a.id];
-            return (
-              <div key={a.id} className={`carte p-2.5 flex items-center gap-2 ${focus === a.id ? 'border-sang/50' : ''}`}>
-                <button className="flex-1 text-left text-[13.5px] font-semibold" onClick={() => onFocus(a.id)}>{p.nom}</button>
-                {!['fa', 'bav', 'diabete'].includes(a.id) && (
-                  <div className="seg">{SEVERITES.map((s) => <button key={s.v} className={a.s === s.v ? 'actif' : ''} onClick={() => onSeverite(a.id, s.v)}>{s.nom}</button>)}</div>
-                )}
-                <button className="btn-icone" onClick={() => onToggle(a.id)} aria-label={`Retirer ${p.nom}`}><X size={15} /></button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {f && (
-        <article className="carte p-4 space-y-3 fade-in" key={f.id}>
+      {f ? (
+        <article className="space-y-3 fade-in" key={f.id}>
+          <button onClick={() => onFocus(null)} className="text-xs text-muted inline-flex items-center gap-1 hover:text-txt"><ArrowLeft size={13} /> Toutes les maladies</button>
           <div className="flex justify-between items-start gap-2">
-            <h3 className="font-display text-xl">{f.nom}</h3>
-            <button className="btn-icone" onClick={() => onFocus(null)} aria-label="Fermer la fiche"><X size={15} /></button>
+            <h3 className="font-display text-2xl">{f.nom}</h3>
+            {actives.some((a) => a.id === f.id)
+              ? <button className="puce" onClick={() => onToggle(f.id)}><X size={13} /> Retirer</button>
+              : <button onClick={() => onToggle(f.id)} className="rounded-lg bg-sang text-white font-bold text-[13px] px-3 py-1.5 shrink-0">Simuler</button>}
           </div>
-          <section><div className="titre-section mb-1">Ce qui se passe</div><Texte3 textes={f.texte} niveau={niveau} /></section>
-          <section><div className="titre-section mb-1">Ce qu'on voit dans la simulation</div><p className="text-[13.5px] text-muted">{f.voir}</p></section>
-          <section><div className="titre-section mb-1">Conséquences</div><ul className="text-[13.5px] space-y-0.5">{f.consequences.map((c) => <li key={c}>• {c}</li>)}</ul></section>
-          <section className="rounded-xl bg-ok/8 border border-ok/25 p-3">
-            <div className="titre-section mb-1 text-ok/90">Traitement proposé</div>
-            <p className="text-[13.5px]">{f.traitement.texte}</p>
-            {f.traitement.nonMedicamenteux && <p className="text-[12.5px] text-muted mt-1.5">Hygiène de vie : {f.traitement.nonMedicamenteux}</p>}
-            {Object.keys(f.traitement.propose).length > 0 && (
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                {(Object.entries(f.traitement.propose) as [ClasseId, number][]).map(([c, d]) => (
-                  <span key={c} className={`puce trt ${traitement[c] ? 'actif' : ''}`}>{CLASSE_PAR_ID[c].court}{d !== 1 ? ` ${d === 0.5 ? '½' : '×2'}` : ''}</span>
-                ))}
-                <button onClick={() => onProposer(f.id)} className="ml-auto rounded-lg bg-ok text-ink font-bold text-[13px] px-3 py-1.5 inline-flex items-center gap-1.5"><Pill size={14} /> Appliquer</button>
-              </div>
-            )}
-          </section>
+          {actives.some((a) => a.id === f.id) && !['fa', 'bav', 'diabete'].includes(f.id) && (
+            <div className="seg">{SEVERITES.map((x) => <button key={x.v} className={actives.find((a) => a.id === f.id)?.s === x.v ? 'actif' : ''} onClick={() => onSeverite(f.id, x.v)}>{x.nom}</button>)}</div>
+          )}
+          <section className="carte p-3.5"><div className="titre-section mb-1">Ce qui se passe</div><Texte3 textes={f.texte} niveau={niveau} /></section>
+          <section className="carte p-3.5"><div className="titre-section mb-1">Ce qu'on voit</div><p className="text-[13.5px] text-muted">{f.voir}</p>
+            <div className="titre-section mt-3 mb-1">Conséquences</div><ul className="text-[13.5px] space-y-0.5">{f.consequences.map((c) => <li key={c}>• {c}</li>)}</ul></section>
+          <BlocTraitement {...props} patho={f} />
           {f.arret && <section className="rounded-xl bg-warn/8 border border-warn/25 p-3"><div className="titre-section mb-1 text-warn/90">Si on arrête le traitement</div><p className="text-[13.5px]">{f.arret}</p></section>}
-          {!actives.some((a) => a.id === f.id) && <button onClick={() => onToggle(f.id)} className="w-full rounded-lg bg-sang text-white font-bold text-sm py-2">Simuler cette maladie</button>}
         </article>
-      )}
-      {familles.map((fam) => {
-        const liste = PATHOLOGIES.filter((p) => p.famille === fam && p.niveauMin <= Math.max(niveau, 2));
-        if (!liste.length) return null;
-        return (
-          <div key={fam}>
-            <div className="titre-section mb-1.5">{FAMILLES[fam]}</div>
+      ) : (
+        <>
+          <div>
+            <div className="titre-section mb-2">Cas prêts à présenter</div>
             <div className="flex flex-wrap gap-1.5">
-              {liste.map((p) => {
-                const on = actives.some((a) => a.id === p.id);
-                return <button key={p.id} className={`puce ${on ? 'actif' : ''} ${focus === p.id ? 'ring-1 ring-accent/60' : ''}`} onClick={() => { if (!on) onToggle(p.id); onFocus(p.id); }}>{on && <Check size={13} />}{niveau === 1 ? p.court : p.nom}</button>;
-              })}
+              {SCENARIOS_RAPIDES.map((s) => <button key={s.nom} className="puce" onClick={() => onScenario(s.actives)}><Sparkles size={13} /> {s.nom}</button>)}
+              {actives.length > 0 && <button className="puce" onClick={() => onScenario([])}><X size={13} /> Sujet sain</button>}
             </div>
           </div>
-        );
-      })}
+          {actives.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="titre-section">Simulées en ce moment — touchez pour traiter</div>
+              {actives.map((a) => {
+                const p = PATHO_PAR_ID[a.id];
+                const pts = evaluerPathologie(a.id, actives, props.etat, props.traitement);
+                const ok = pts.length > 0 && pts.every((x) => x.ok);
+                return (
+                  <button key={a.id} onClick={() => onFocus(a.id)} className="w-full carte p-2.5 flex items-center gap-2 text-left hover:border-sang/40">
+                    <span className={`w-2.5 h-2.5 rounded-full ${ok ? 'bg-ok' : 'bg-warn'}`} />
+                    <span className="flex-1 text-[13.5px] font-semibold">{p.nom}</span>
+                    <span className={`text-[11.5px] ${ok ? 'text-ok' : 'text-warn'}`}>{ok ? 'Contrôlée' : 'À traiter'}</span>
+                    <ArrowRight size={14} className="text-dim" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {dansZone.length > 0 && (
+            <div className="rounded-xl border border-accent/25 bg-accent/5 p-3">
+              <div className="titre-section mb-1.5">Zone sélectionnée : {ZONES[zone!].nom}</div>
+              <div className="flex flex-wrap gap-1.5">{dansZone.map(puce)}</div>
+            </div>
+          )}
+          <p className="text-xs text-dim">Classées selon ce que vous regardez : {NOM_VUE[vue]}.</p>
+          {familles.map((fam) => {
+            const liste = PATHOLOGIES.filter((p) => p.famille === fam && p.niveauMin <= Math.max(niveau, 2));
+            if (!liste.length) return null;
+            return <div key={fam}><div className="titre-section mb-1.5">{FAMILLES[fam]}</div><div className="flex flex-wrap gap-1.5">{liste.map(puce)}</div></div>;
+          })}
+        </>
+      )}
     </div>
   );
 }
 
-// ─────────────────────────── Traitements ───────────────────────────
+// ─────────────────────────── Traitement intégré à la fiche ───────────────────────────
 
-export function PanneauTraitements({ niveau, etat, etatSans, traitement, labo, onDose, onRemplacer }: {
-  niveau: Niveau; etat: Etat; etatSans: Etat; traitement: Traitement; labo: boolean;
+function BlocTraitement({ patho, niveau, actives, etat, etatSans, traitement, labo, onDose, onRemplacer }: {
+  patho: Pathologie; niveau: Niveau; actives: PathoActive[]; etat: Etat; etatSans: Etat; traitement: Traitement; labo: boolean;
   onDose: (c: ClasseId, d: number) => void; onRemplacer: (t: Traitement) => void;
 }) {
   const [ouverte, setOuverte] = useState<ClasseId | null>(null);
+  const [autres, setAutres] = useState(false);
+  const simulee = actives.some((a) => a.id === patho.id);
+  const propose = patho.traitement.propose;
+  const proposees = Object.keys(propose) as ClasseId[];
+  const groupesUtiles = new Set(proposees.map((c) => CLASSE_PAR_ID[c].groupe));
+  const principales = CLASSES.filter((c) => proposees.includes(c.id) || (groupesUtiles.has(c.groupe) && c.groupe !== 'coeur'));
+  const secondaires = CLASSES.filter((c) => !principales.includes(c));
   const actif = Object.values(traitement).some((d) => d && d > 0);
-  const groupes = Object.keys(GROUPES) as GroupeClasse[];
-  return (
-    <div className="space-y-4 fade-in">
-      {actif && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between"><div className="titre-section">Avec le traitement (écart vs sans)</div><button onClick={() => onRemplacer({})} className="text-xs text-muted hover:text-txt">Tout retirer</button></div>
-          <Moniteur e={etat} niveau={Math.min(niveau, 2) as Niveau} ref0={etatSans} />
-        </div>
-      )}
-      {etat.alertes.length > 0 && (
-        <div className="space-y-1.5">
-          {etat.alertes.map((a) => (
-            <div key={a.texte} className={`rounded-xl border p-2.5 text-[13px] flex gap-2 ${a.niveau === 'danger' ? 'border-alert/50 bg-alert/10' : a.niveau === 'attention' ? 'border-warn/40 bg-warn/8' : 'border-line'}`}>
-              <AlertTriangle size={15} className={`shrink-0 mt-0.5 ${a.niveau === 'danger' ? 'text-alert' : 'text-warn'}`} /> {a.texte}
-            </div>
-          ))}
-        </div>
-      )}
-      {etat.effets.length > 0 && (
-        <div className="carte p-3"><div className="titre-section mb-1">Effets indésirables à surveiller</div><ul className="text-[13px] text-muted space-y-0.5">{etat.effets.map((e) => <li key={e}>• {e}</li>)}</ul></div>
-      )}
+  const points = simulee ? evaluerPathologie(patho.id, actives, etat, traitement) : [];
+  const enPlus = classesEnPlus(actives, traitement);
+  const marques = MARQUES.filter((m) => m.presentations.some((p) => Object.keys(p.doses).some((c) => proposees.includes(c as ClasseId))));
 
-      {labo && (
+  const ligneClasse = (c: Classe) => {
+    const d = traitement[c.id] ?? 0;
+    const open = ouverte === c.id;
+    return (
+      <div key={c.id} className={`carte ${d ? 'border-ok/40' : ''}`}>
+        <div className="flex items-center gap-2 p-2">
+          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.couleur }} />
+          <button className="flex-1 text-left min-w-0" onClick={() => setOuverte(open ? null : c.id)}>
+            <div className="text-[13px] font-semibold truncate">{niveau === 1 ? c.court : c.nom}{proposees.includes(c.id) && <span className="ml-1.5 text-[10px] text-ok font-bold">PROPOSÉ</span>}</div>
+            <div className="text-[11px] text-dim truncate">{c.exemples}</div>
+          </button>
+          <div className="seg shrink-0">
+            <button className={d === 0 ? 'actif' : ''} onClick={() => onDose(c.id, 0)} aria-label={`Sans ${c.court}`}>0</button>
+            {DOSES.map((x) => <button key={x.v} className={d === x.v ? 'actif' : ''} onClick={() => onDose(c.id, x.v)} aria-label={`${c.court} ${x.nom}`}>{x.v === 0.5 ? '½' : x.v === 1 ? '1' : '2'}</button>)}
+          </div>
+        </div>
+        {open && (
+          <div className="px-3 pb-3 space-y-2 text-[13px] fade-in">
+            <div className="text-[11.5px] text-dim">Agit sur : {c.cible}</div>
+            <Texte3 textes={c.mecanisme} niveau={niveau} />
+            <p><span className="font-semibold">Ce qu'on voit : </span><span className="text-muted">{c.effetVisible}</span></p>
+            <div><span className="font-semibold">Effets indésirables : </span><span className="text-muted">{c.indesirables.join(' · ')}</span></div>
+            <div className="rounded-lg bg-warn/8 border border-warn/25 p-2"><span className="font-semibold text-warn">À l'arrêt : </span>{c.arret}</div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <section className="rounded-2xl border border-ok/25 bg-ok/[0.04] p-3.5 space-y-3">
+      <div className="flex items-center gap-2"><Pill size={16} className="text-ok" /><span className="font-bold">Traiter</span></div>
+      <p className="text-[13.5px]">{patho.traitement.texte}</p>
+      {patho.traitement.nonMedicamenteux && <p className="text-[12.5px] text-muted">Hygiène de vie : {patho.traitement.nonMedicamenteux}</p>}
+      {proposees.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {proposees.map((c) => <span key={c} className={`puce trt ${traitement[c] ? 'actif' : ''}`}>{CLASSE_PAR_ID[c].court}{propose[c] !== 1 ? ` ${propose[c] === 0.5 ? '½' : '×2'}` : ''}</span>)}
+          <button onClick={() => onRemplacer({ ...traitement, ...propose })} className="ml-auto rounded-lg bg-ok text-ink font-bold text-[13px] px-3 py-1.5 inline-flex items-center gap-1.5"><Pill size={14} /> Appliquer le traitement proposé</button>
+        </div>
+      )}
+      {simulee && actif && (
+        <>
+          <div className="titre-section">Résultat (écart par rapport à sans traitement)</div>
+          <Moniteur e={etat} niveau={Math.min(niveau, 2) as Niveau} ref0={etatSans} compact />
+        </>
+      )}
+      {points.length > 0 && (
+        <ul className="space-y-1.5">
+          {points.map((p) => (
+            <li key={p.texte} className={`flex gap-2 text-[13px] rounded-lg p-2 ${p.ok ? 'bg-ok/10' : 'bg-warn/10'}`}>
+              {p.ok ? <Check size={15} className="text-ok shrink-0 mt-0.5" /> : <AlertTriangle size={15} className="text-warn shrink-0 mt-0.5" />}<span>{p.texte}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {enPlus.length > 0 && (
+        <div className="rounded-lg border border-line p-2.5 text-[13px] space-y-1">
+          <div className="titre-section">Ajouté sans indication ici</div>
+          {enPlus.map((c) => <div key={c}><b>{CLASSE_PAR_ID[c].court}</b> <span className="text-muted">— pas utile pour les maladies simulées ; il apporte surtout ses effets indésirables : {CLASSE_PAR_ID[c].indesirables[0].toLowerCase()}.</span></div>)}
+        </div>
+      )}
+      {etat.alertes.map((a) => (
+        <div key={a.texte} className={`rounded-xl border p-2.5 text-[13px] flex gap-2 ${a.niveau === 'danger' ? 'border-alert/50 bg-alert/10' : 'border-warn/40 bg-warn/8'}`}>
+          <AlertTriangle size={15} className={`shrink-0 mt-0.5 ${a.niveau === 'danger' ? 'text-alert' : 'text-warn'}`} /> {a.texte}
+        </div>
+      ))}
+      {etat.effets.length > 0 && <div className="text-[12.5px] text-muted"><span className="font-semibold text-txt">À surveiller : </span>{etat.effets.join(' · ')}</div>}
+
+      {labo && marques.length > 0 && (
         <div className="rounded-2xl border border-accent/30 bg-accent/5 p-3 space-y-2.5">
           <div className="flex items-baseline justify-between"><div className="font-display text-lg">{LABO.nom}</div><div className="text-xs text-muted">{LABO.sousTitre}</div></div>
-          {MARQUES.map((m) => (
+          {marques.map((m) => (
             <div key={m.id} className="carte p-2.5">
               <div className="flex items-baseline justify-between gap-2"><span className="font-bold">{m.nom}</span><span className="text-[11px] text-muted text-right">{m.composition}</span></div>
-              <div className="text-[11.5px] text-dim">{m.classe}</div>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {m.presentations.map((p) => {
                   const on = Object.entries(p.doses).every(([k, v]) => traitement[k as ClasseId] === v);
@@ -298,43 +373,14 @@ export function PanneauTraitements({ niveau, etat, etatSans, traitement, labo, o
         </div>
       )}
 
-      {groupes.map((g) => (
-        <div key={g}>
-          <div className="titre-section mb-1.5">{GROUPES[g]}</div>
-          <div className="space-y-1.5">
-            {CLASSES.filter((c) => c.groupe === g).map((c) => {
-              const d = traitement[c.id] ?? 0;
-              const open = ouverte === c.id;
-              return (
-                <div key={c.id} className={`carte ${d ? 'border-ok/40' : ''}`}>
-                  <div className="flex items-center gap-2 p-2.5">
-                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.couleur }} />
-                    <button className="flex-1 text-left min-w-0" onClick={() => setOuverte(open ? null : c.id)}>
-                      <div className="text-[13.5px] font-semibold truncate">{niveau === 1 ? c.court : c.nom}</div>
-                      <div className="text-[11.5px] text-dim truncate">{c.exemples}</div>
-                    </button>
-                    <div className="seg shrink-0">
-                      <button className={d === 0 ? 'actif' : ''} onClick={() => onDose(c.id, 0)} aria-label={`Sans ${c.court}`}>0</button>
-                      {DOSES.map((x) => <button key={x.v} className={d === x.v ? 'actif' : ''} onClick={() => onDose(c.id, x.v)} aria-label={`${c.court} ${x.nom}`}>{x.v === 0.5 ? '½' : x.v === 1 ? '1' : '2'}</button>)}
-                    </div>
-                  </div>
-                  {open && (
-                    <div className="px-3 pb-3 space-y-2 text-[13px] fade-in">
-                      <div className="text-[11.5px] text-dim">Agit sur : {c.cible}</div>
-                      <Texte3 textes={c.mecanisme} niveau={niveau} />
-                      <p><span className="font-semibold">Ce qu'on voit : </span><span className="text-muted">{c.effetVisible}</span></p>
-                      <div><span className="font-semibold">Effets indésirables : </span><span className="text-muted">{c.indesirables.join(' · ')}</span></div>
-                      <div className="rounded-lg bg-warn/8 border border-warn/25 p-2"><span className="font-semibold text-warn">À l'arrêt : </span>{c.arret}</div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-      <div className="carte p-3"><div className="titre-section mb-2">Risques</div><Risques e={etat} ref0={actif ? etatSans : null} /></div>
-    </div>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between"><div className="titre-section">Ajuster classe par classe</div>{actif && <button onClick={() => onRemplacer({})} className="text-xs text-muted hover:text-txt">Tout retirer</button>}</div>
+        {principales.map(ligneClasse)}
+        <button onClick={() => setAutres((v) => !v)} className="text-xs text-accent font-semibold inline-flex items-center gap-1"><ChevronDown size={14} className={autres ? 'rotate-180' : ''} /> {autres ? 'Masquer les autres classes' : `Essayer une autre classe (${secondaires.length})`}</button>
+        {autres && secondaires.map(ligneClasse)}
+      </div>
+      {simulee && <div className="carte p-3"><div className="titre-section mb-2">Risques</div><Risques e={etat} ref0={actif ? etatSans : null} /></div>}
+    </section>
   );
 }
 
@@ -362,7 +408,7 @@ export function PanneauEvolution({ terrain, traitement, vueEvo, onVueEvo, onAlle
         <p className="text-sm text-muted mt-1">Trois histoires pour le même patient : sans traitement, avec le traitement suivi, ou traitement arrêté en cours de route.</p>
       </div>
       {!actif && (
-        <button onClick={onAllerTraitements} className="w-full carte p-3 text-left text-sm"><span className="text-accent font-semibold">Choisissez d'abord un traitement</span> <span className="text-muted">(onglet Traitements ou « Appliquer » sur une fiche) pour comparer les trois scénarios.</span></button>
+        <button onClick={onAllerTraitements} className="w-full carte p-3 text-left text-sm"><span className="text-accent font-semibold">Choisissez d'abord un traitement</span> <span className="text-muted">(onglet Maladies : ouvrez une fiche puis « Traiter ») pour comparer les trois scénarios.</span></button>
       )}
       <div className="flex flex-wrap gap-3 text-xs">
         {LEGENDE_SCENARIOS.filter((l) => l.k === 'sans' || actif).map((l) => <span key={l.k} className="inline-flex items-center gap-1.5"><span className="w-3 h-1 rounded" style={{ background: l.c }} />{l.nom}</span>)}

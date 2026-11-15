@@ -1,16 +1,18 @@
 /** Application Hémodyssée : état global, mise en page, en-tête et accueil. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, BookOpen, Briefcase, Compass, HeartPulse, Info, Map, Pill, Snail, TrendingUp, Volume2, VolumeX, X } from 'lucide-react';
+import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Info, Map, MessageCircle, RefreshCw, Snail, TrendingUp, Volume2, VolumeX, X } from 'lucide-react';
+import { Signalement, WHATSAPP } from './Signalement.tsx';
 import { calculer, fractionAu, evoluer, TERRAIN_NORMAL } from '../core/engine.ts';
 import { Son } from '../core/audio.ts';
 import type { ClasseId, Niveau, Traitement } from '../core/types.ts';
 import type { ZoneId } from '../content/zones.ts';
 import { construireTerrain, PATHO_PAR_ID, type PathoActive } from '../content/pathologies.ts';
+import { CLASSE_PAR_ID } from '../content/classes.ts';
 import { Stage, type Vue } from './Stage.tsx';
 import { Moniteur } from './widgets.tsx';
-import { PanneauEvolution, PanneauExplorer, PanneauMaladies, PanneauTraitements, type VueEvolution } from './panels.tsx';
+import { PanneauEvolution, PanneauExplorer, PanneauMaladies, type VueEvolution } from './panels.tsx';
 
-type Onglet = 'explorer' | 'maladies' | 'traitements' | 'evolution';
+type Onglet = 'explorer' | 'maladies' | 'evolution';
 
 const lire = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const ecrire = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* stockage indisponible */ } };
@@ -36,6 +38,17 @@ export default function App() {
   const [labo, setLabo] = useState(() => /[?&]labo/.test(location.search) || lire('hemo.labo') === '1');
   const [apropos, setApropos] = useState(false);
   const son = useRef(new Son()).current;
+  const [signaler, setSignaler] = useState(false);
+  const [maj, setMaj] = useState(false);
+  const [installer, setInstaller] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
+  useEffect(() => {
+    const surMaj = () => setMaj(true);
+    const surInstall = (e: Event) => { e.preventDefault(); setInstaller(e as Event & { prompt: () => Promise<void> }); };
+    window.addEventListener('hemo-maj', surMaj);
+    window.addEventListener('beforeinstallprompt', surInstall);
+    window.addEventListener('appinstalled', () => setInstaller(null));
+    return () => { window.removeEventListener('hemo-maj', surMaj); window.removeEventListener('beforeinstallprompt', surInstall); };
+  }, []);
 
   useEffect(() => { ecrire('hemo.labo', labo ? '1' : '0'); }, [labo]);
 
@@ -49,6 +62,11 @@ export default function App() {
     return calculer(terrains[vueEvo.mois], traitement, { fraction: f });
   }, [vueEvo, etatAuj, terrain, traitement]);
 
+  const legende = [
+    actives.map((a) => PATHO_PAR_ID[a.id].court).join(' + ') || 'Sujet sain',
+    Object.keys(traitement).length ? 'Traitement : ' + (Object.keys(traitement) as ClasseId[]).map((c) => CLASSE_PAR_ID[c].court).join(', ') : '',
+    `PA ${etatScene.pas}/${etatScene.pad}`,
+  ].filter(Boolean).join(' · ');
   const choisirNiveau = (n: Niveau) => { setNiveau(n); ecrire('hemo.niveau', String(n)); setAccueil(false); };
   // Quand une maladie est ajoutée, la scène va directement sur la zone atteinte.
   const ZONE_LESION: Record<string, ZoneId> = { hta: 'aorte', htaSys: 'aorte', dyslip: 'coronaires', athero: 'carotides', aomi: 'membres', angor: 'coronaires', idm: 'coronaires', hvg: 'vg', icfer: 'vg', icfep: 'vg', oap: 'poumons', ra: 'valveAo', ia: 'valveAo', rm: 'valveMi', im: 'valveMi', it: 'valveTri', fa: 'og', bav: 'noeudAV', avc: 'cerveau', irc: 'reins', diabete: 'reins' };
@@ -71,7 +89,6 @@ export default function App() {
     setVueEvo(null);
   };
   const onDose = (c: ClasseId, d: number) => { setTraitement((t) => { const n = { ...t }; if (d) n[c] = d; else delete n[c]; return n; }); };
-  const proposer = (id: string) => { setTraitement(PATHO_PAR_ID[id].traitement.propose); setOnglet('traitements'); };
   const onZone = (z: ZoneId | null) => { setZone(z); if (z) setOnglet('explorer'); };
   const basculerSon = () => {
     if (sonOn) { son.couper(); setSonOn(false); }
@@ -80,8 +97,7 @@ export default function App() {
 
   const ONGLETS: { id: Onglet; nom: string; icone: typeof Map; badge?: number }[] = [
     { id: 'explorer', nom: 'Explorer', icone: Map },
-    { id: 'maladies', nom: 'Maladies', icone: HeartPulse, badge: actives.length || undefined },
-    { id: 'traitements', nom: 'Traitements', icone: Pill, badge: Object.keys(traitement).length || undefined },
+    { id: 'maladies', nom: 'Maladies et traitements', icone: HeartPulse, badge: actives.length || undefined },
     { id: 'evolution', nom: 'Évolution', icone: TrendingUp },
   ];
 
@@ -110,6 +126,8 @@ export default function App() {
           <button onClick={basculerSon} className={`btn-icone ml-auto lg:ml-0 ${sonOn ? 'actif' : ''}`} title="Bruits du cœur" aria-label="Activer les bruits du cœur">{sonOn ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
           <button onClick={() => setRalenti((v) => !v)} className={`btn-icone hidden sm:grid ${ralenti ? 'actif' : ''}`} title="Ralenti" aria-label="Ralenti"><Snail size={16} /></button>
           <button onClick={() => setLabo((v) => !v)} className={`btn-icone ${labo ? 'actif' : ''}`} title="Mode labo (gamme commerciale)" aria-label="Mode labo"><Briefcase size={16} /></button>
+          {installer && <button onClick={() => { void installer.prompt(); setInstaller(null); }} className="btn-icone actif" title="Installer l'application" aria-label="Installer l'application"><Download size={16} /></button>}
+          <button onClick={() => setSignaler(true)} className="btn-icone" title="Signaler un problème ou suggérer" aria-label="Signaler"><MessageCircle size={16} /></button>
           <button onClick={() => setApropos(true)} className="btn-icone" title="À propos" aria-label="À propos"><Info size={16} /></button>
         </div>
         <div className="lg:hidden px-3 pb-2 grid sm:grid-cols-2 gap-2">
@@ -127,7 +145,7 @@ export default function App() {
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col gap-3 min-w-0">
           <div className="h-[56vh] min-h-[340px] lg:h-[calc(100vh-190px)] lg:min-h-[520px]">
-            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} />
+            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} legende={legende} />
           </div>
           {vueEvo && (
             <div className="rounded-xl border border-warn/40 bg-warn/8 px-3 py-2 text-[13px] flex items-center gap-2">
@@ -140,7 +158,7 @@ export default function App() {
         </section>
 
         <aside className="lg:h-[calc(100vh-88px)] lg:sticky lg:top-[68px] flex flex-col min-h-0 rounded-2xl border border-line bg-panel">
-          <nav className="grid grid-cols-4 gap-1 p-1.5 border-b border-line" role="tablist">
+          <nav className="grid grid-cols-3 gap-1 p-1.5 border-b border-line" role="tablist">
             {ONGLETS.map((o) => (
               <button key={o.id} role="tab" aria-selected={onglet === o.id} onClick={() => setOnglet(o.id)}
                 className={`relative rounded-xl py-2 text-[12px] font-semibold flex flex-col items-center gap-0.5 ${onglet === o.id ? 'bg-card2 text-white' : 'text-muted hover:text-txt'}`}>
@@ -151,10 +169,10 @@ export default function App() {
           </nav>
           <div className="flex-1 overflow-y-auto scroll-thin p-3.5" data-testid="panneau">
             {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} etat={etatScene} actives={actives} onZone={onZone} onTogglePatho={togglePatho} onVue={setVue} onVoirPatho={(id) => { setFocusPatho(id); }} />}
-            {onglet === 'maladies' && <PanneauMaladies niveau={niveau} actives={actives} focus={focusPatho} traitement={traitement} onFocus={setFocusPatho} onToggle={togglePatho}
-              onSeverite={(id, s) => setActives((a) => a.map((x) => (x.id === id ? { ...x, s } : x)))} onScenario={(a) => { setActives(a); setTraitement({}); setVueEvo(null); setFocusPatho(a[0]?.id ?? null); }} onProposer={proposer} />}
-            {onglet === 'traitements' && <PanneauTraitements niveau={niveau} etat={etatAuj} etatSans={etatSans} traitement={traitement} labo={labo} onDose={onDose} onRemplacer={setTraitement} />}
-            {onglet === 'evolution' && <PanneauEvolution terrain={terrain} traitement={traitement} vueEvo={vueEvo} onVueEvo={setVueEvo} onAllerTraitements={() => setOnglet('traitements')} />}
+            {onglet === 'maladies' && <PanneauMaladies niveau={niveau} vue={vue} zone={zone} actives={actives} focus={focusPatho} traitement={traitement} etat={etatAuj} etatSans={etatSans} labo={labo}
+              onFocus={setFocusPatho} onToggle={togglePatho} onDose={onDose} onRemplacer={setTraitement}
+              onSeverite={(id, s) => setActives((a) => a.map((x) => (x.id === id ? { ...x, s } : x)))} onScenario={(a) => { setActives(a); setTraitement({}); setVueEvo(null); setFocusPatho(null); if (a[0] && ZONE_LESION[a[0].id]) setZone(ZONE_LESION[a[0].id]); }} />}
+            {onglet === 'evolution' && <PanneauEvolution terrain={terrain} traitement={traitement} vueEvo={vueEvo} onVueEvo={setVueEvo} onAllerTraitements={() => setOnglet('maladies')} />}
           </div>
           {onglet === 'explorer' && focusPatho && (
             <button onClick={() => setOnglet('maladies')} className="m-2 mt-0 rounded-xl bg-card2 border border-line py-2 text-[13px] font-semibold">Ouvrir la fiche : {PATHO_PAR_ID[focusPatho].nom} →</button>
@@ -162,10 +180,24 @@ export default function App() {
         </aside>
       </main>
 
-      <footer className="text-center text-[11px] text-dim pb-4 px-4">Hémodyssée · Dr Oumar Sow · Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</footer>
+      <footer className="text-center text-[11px] text-dim pb-4 px-4">Hémodyssée · conçu par le Dr Oumar Sow · Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</footer>
 
       {accueil && <Accueil onChoix={choisirNiveau} />}
       {apropos && <APropos onClose={() => setApropos(false)} labo={labo} />}
+      {signaler && <Signalement onClose={() => setSignaler(false)} contexte={[
+        `Version : ${__VERSION__}`, `Vue : ${vue} · niveau ${niveau}${zone ? ` · zone ${zone}` : ''}`,
+        `Maladies : ${actives.map((a) => `${PATHO_PAR_ID[a.id].court} (${a.s})`).join(', ') || 'aucune'}`,
+        `Traitement : ${Object.entries(traitement).map(([c, d]) => `${CLASSE_PAR_ID[c as ClasseId].court} ×${d}`).join(', ') || 'aucun'}`,
+        `PA ${etatScene.pas}/${etatScene.pad} · FC ${etatScene.fc} · FE ${Math.round(etatScene.fe * 100)} %`,
+        `Appareil : ${navigator.userAgent}`, `Écran : ${window.innerWidth}×${window.innerHeight}`,
+      ].join('\n')} />}
+      {maj && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 rounded-2xl border border-accent/40 bg-panel shadow-2xl px-4 py-3 flex items-center gap-3 text-sm fade-in">
+          <RefreshCw size={16} className="text-accent" /> Nouvelle version d'Hémodyssée installée.
+          <button onClick={() => location.reload()} className="rounded-lg bg-accent text-ink font-bold px-3 py-1">Recharger</button>
+          <button onClick={() => setMaj(false)} className="text-muted" aria-label="Plus tard"><X size={15} /></button>
+        </div>
+      )}
     </div>
   );
 }
@@ -219,7 +251,16 @@ function APropos({ onClose, labo }: { onClose: () => void; labo: boolean }) {
         </div>
         <div><div className="titre-section mb-1">Limites</div><p className="text-muted">C'est un modèle simplifié : il montre les bons sens de variation et les bons ordres de grandeur, pas l'évolution d'un patient réel. Il ne remplace ni l'avis médical ni le RCP des médicaments.</p></div>
         {labo && <div className="rounded-xl border border-accent/30 bg-accent/5 p-3 text-muted">Le mode labo affiche une gamme commerciale. Il est désactivé par défaut : la version publique reste en DCI.</div>}
-        <p className="text-dim text-xs">Conçu par le Dr Oumar Sow, pharmacien. Contact : WhatsApp @drSOWOUMAR.</p>
+        <div><div className="titre-section mb-1">Installer sur téléphone ou ordinateur</div>
+          <ul className="space-y-1 text-muted">
+            <li>• <b className="text-txt">Android / Chrome</b> : bouton « Installer » en haut, ou menu ⋮ → « Installer l'application ».</li>
+            <li>• <b className="text-txt">iPhone / iPad</b> : dans Safari, bouton Partager → « Sur l'écran d'accueil ».</li>
+            <li>• Elle fonctionne hors connexion et reste liée au site : chaque nouvelle version s'installe toute seule (un message propose de recharger).</li>
+            <li>• Pour la supprimer : appui long sur l'icône → Supprimer, comme n'importe quelle application.</li>
+          </ul>
+        </div>
+        <div><div className="titre-section mb-1">Exporter</div><p className="text-muted">Boutons appareil photo et enregistrement sur la scène : image PNG, ou vidéo (MP4 ou WebM selon le navigateur) avec les bruits du cœur si le son est activé.</p></div>
+        <p className="text-dim text-xs">Conçu par le Dr Oumar Sow, pharmacien · WhatsApp @{WHATSAPP} · version {__VERSION__}</p>
       </div>
     </div>
   );

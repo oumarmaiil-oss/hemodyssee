@@ -50,7 +50,7 @@ const ANCRES: Partial<Record<ZoneId, THREE.Vector3>> = {
   aorte: V(0.45, 2.0, -0.32), artPulm: V(0.12, 1.45, 0.4), veinesCaves: V(-1.02, 1.85, 0), veinesPulm: V(1.25, 1.02, -0.86),
   coronaires: V(-0.02, 0.15, 0.95), carotides: V(0.42, 2.45, -0.3),
 };
-const DISTANCE: Partial<Record<ZoneId, number>> = { valveTri: 4.6, valvePu: 4.6, valveMi: 4.6, valveAo: 4.6, noeudSinusal: 4.0, noeudAV: 4.2, coronaires: 5.4, carotides: 4.4, od: 5.2, og: 5.2, vd: 5.6, vg: 5.8 };
+const DISTANCE: Partial<Record<ZoneId, number>> = { valveTri: 4.6, valvePu: 4.6, valveMi: 4.6, valveAo: 4.6, noeudSinusal: 4.0, noeudAV: 4.2, coronaires: 5.4, carotides: 4.4, aorte: 6.2, artPulm: 5.4, veinesCaves: 6, veinesPulm: 5.4, od: 5.2, og: 5.2, vd: 5.6, vg: 5.8 };
 const INTERNES: ZoneId[] = ['od', 'vd', 'og', 'vg', 'valveTri', 'valvePu', 'valveMi', 'valveAo', 'noeudAV'];
 
 // ── Textures procédurales ──
@@ -535,8 +535,22 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   // ── Boucle d'image ──
   const tmp = V(0, 0, 0), tmp2 = V(0, 0, 0);
   let temps = 0;
+  // Résolution adaptative : si l'appareil peine, on baisse la définition par paliers.
+  let prActuel = renderer.getPixelRatio(), cumul = 0, nbImages = 0, dernier = performance.now();
+  function gouverneur() {
+    const now = performance.now(); cumul += now - dernier; dernier = now; nbImages++;
+    if (nbImages < 90) return;
+    const moy = cumul / nbImages; cumul = 0; nbImages = 0;
+    if (moy > 30 && prActuel > 1) {
+      prActuel = Math.max(1, prActuel - 0.25);
+      renderer.setPixelRatio(prActuel);
+      renderer.setSize(conteneur.clientWidth, conteneur.clientHeight, false);
+    }
+  }
+
   function frame(i: Instant, dt: number) {
     temps += dt;
+    gouverneur();
     const e = etat;
     const t = e?.terrain;
     const debit = e ? e.debit / 5 : 1;

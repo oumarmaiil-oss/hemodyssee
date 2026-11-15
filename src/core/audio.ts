@@ -25,6 +25,8 @@ export class Son {
   private ctx: AudioContext | null = null;
   private sortie: GainNode | null = null;
   private bruit: AudioBuffer | null = null;
+  private vol: GainNode | null = null;
+  private dest: MediaStreamAudioDestinationNode | null = null;
   actif = false;
   volume = 0.8;
 
@@ -41,7 +43,7 @@ export class Son {
         const pk = this.ctx.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 110; pk.gain.value = 4; pk.Q.value = 0.8;
         const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100;
         const comp = this.ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 3;
-        const vol = this.ctx.createGain(); vol.gain.value = this.volume;
+        const vol = this.ctx.createGain(); vol.gain.value = this.volume; this.vol = vol;
         hp.connect(pk).connect(lp).connect(comp).connect(vol).connect(this.ctx.destination);
         this.sortie = this.ctx.createGain();
         this.sortie.connect(hp);
@@ -60,6 +62,13 @@ export class Son {
     }
   }
   couper() { this.actif = false; }
+
+  /** Flux audio pour l'enregistrement vidéo (null si le son n'est pas activé). */
+  flux(): MediaStream | null {
+    if (!this.ctx || !this.vol || !this.actif) return null;
+    if (!this.dest) { this.dest = this.ctx.createMediaStreamDestination(); this.vol.connect(this.dest); }
+    return this.dest.stream;
+  }
 
   private choc(t0: number, freqs: number[], duree: number, gain: number) {
     const c = this.ctx!;
