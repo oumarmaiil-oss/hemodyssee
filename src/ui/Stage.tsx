@@ -55,13 +55,17 @@ interface Props {
   onLecture: (a: 'prev' | 'next' | 'pause' | 'restart' | 'stop') => void;
   /** Signale qu'une démonstration propre à la scène (étapes de la plaque) est en cours. */
   onLectureLocale?: (on: boolean) => void;
+  /** Vaisseau le plus parlant pour la maladie ouverte (artériole pour l'HTA, jambe pour l'artériopathie…). */
+  sitePatho?: Site | null;
+  /** Incrémenté pour lancer la démonstration des étapes de la plaque. */
+  demandeEtapes?: number;
   peutRetour: boolean;
   onRetour: () => void;
 }
 
 export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean }
 
-export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue, onVoyage3D, tourActif, lecture: lectureApp, onLecture: onLectureApp, onLectureLocale, peutRetour, onRetour }: Props) {
+export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue, onVoyage3D, tourActif, lecture: lectureApp, onLecture: onLectureApp, onLectureLocale, sitePatho, demandeEtapes = 0, peutRetour, onRetour }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const [site, setSite] = useState<Site>('coronaire');
@@ -176,6 +180,8 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
     else if (niveau >= 2 && ['valveMi', 'valveAo', 'vg', 'og'].includes(zone) && !petitEcran) setTraces('tout');
   }, [zone]);
   useEffect(() => { if (zone && SITE_DE_ZONE[zone]) setSite(SITE_DE_ZONE[zone]!); }, [zone]);
+  // Déclaré après : quand une maladie est ouverte, son vaisseau l'emporte sur celui de la zone.
+  useEffect(() => { if (sitePatho) setSite(sitePatho); }, [sitePatho]);
   // Pendant la visite guidée, la caméra se déplace lentement d'une étape à l'autre, sans à-coups.
   useEffect(() => {
     const r = rendu.current as Coeur3D | null;
@@ -204,6 +210,11 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
   useEffect(() => { if (ath && vue !== vueAth(ath.i)) setAth(null); }, [vue]);
   useEffect(() => { if (lectureApp) setAth(null); }, [lectureApp]);
   useEffect(() => { onLectureLocale?.(!!ath); }, [!!ath]);
+  // Démarrage demandé depuis une fiche : on attend que la vue Vaisseau soit prête.
+  const etapesEnAttente = useRef(0);
+  useEffect(() => {
+    if (demandeEtapes > etapesEnAttente.current && vue === 'vaisseau' && pret && !lectureApp) { etapesEnAttente.current = demandeEtapes; allerAth(0, false); }
+  }, [demandeEtapes, vue, pret]);
   useEffect(() => {
     const r = rendu.current;
     if (!pret || !r) return;

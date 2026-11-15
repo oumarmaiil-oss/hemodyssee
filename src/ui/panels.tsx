@@ -213,12 +213,16 @@ function ordreFamilles(vue: Vue, zone: ZoneId | null): Famille[] {
 
 const NOM_VUE: Record<Vue, string> = { '3d': 'le cœur', coeur2d: 'le cœur', '2d': 'le voyage du sang', corps: 'le corps', vaisseau: 'le vaisseau' };
 
+/** Maladies liées à la plaque d'athérome : la démonstration des étapes s'y rattache. */
+const PLAQUE = ['dyslip', 'athero', 'aomi', 'angor', 'idm', 'avc', 'diabete'];
+
 export function PanneauMaladies(props: {
   niveau: Niveau; vue: Vue; zone: ZoneId | null; actives: PathoActive[]; focus: string | null; traitement: Traitement;
   etat: Etat; etatSans: Etat; labo: boolean;
   onFocus: (id: string | null) => void; onToggle: (id: string) => void; onSeverite: (id: string, s: number) => void;
   onScenario: (a: PathoActive[]) => void; onDose: (c: ClasseId, d: number) => void; onRemplacer: (t: Traitement) => void;
   onSequence: () => void; onComparer: () => void;
+  onVoir: (v: 'coeur' | 'corps' | 'vaisseau') => void; onEtapes: () => void;
 }) {
   const { niveau, vue, zone, actives, focus, onFocus, onToggle, onSeverite, onScenario } = props;
   const f = focus ? PATHO_PAR_ID[focus] : null;
@@ -244,6 +248,12 @@ export function PanneauMaladies(props: {
           )}
           <section className="carte p-3.5"><div className="titre-section mb-1">Ce qui se passe</div><Texte3 textes={f.texte} niveau={niveau} /></section>
           <section className="carte p-3.5"><div className="titre-section mb-1">Ce qu'on voit</div><p className="text-[13.5px] text-muted">{f.voir}</p>
+            <div className="flex flex-wrap gap-1.5 mt-2.5">
+              {([['coeur', 'Cœur', vue === '3d' || vue === 'coeur2d'], ['corps', 'Corps', vue === 'corps'], ['vaisseau', 'Vaisseau', vue === 'vaisseau']] as const).map(([v, nom, actif]) => (
+                <button key={v} onClick={() => props.onVoir(v)} className={`puce ${actif ? 'actif' : ''}`}>{actif && <Check size={13} />}Vue {nom}</button>
+              ))}
+              {PLAQUE.includes(f.id) && <button onClick={props.onEtapes} className="puce border-sang/50 text-[#ffb3bd]"><Play size={12} fill="currentColor" /> Étapes de la plaque</button>}
+            </div>
             <div className="titre-section mt-3 mb-1">Conséquences</div><ul className="text-[13.5px] space-y-0.5">{f.consequences.map((c) => <li key={c}>• {c}</li>)}</ul></section>
           <BlocTraitement {...props} patho={f} />
           {f.arret && <section className="rounded-xl bg-warn/8 border border-warn/25 p-3"><div className="titre-section mb-1 text-warn/90">Si on arrête le traitement</div><p className="text-[13.5px]">{f.arret}</p></section>}

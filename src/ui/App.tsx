@@ -9,6 +9,13 @@ import type { ZoneId } from '../content/zones.ts';
 import { construireTerrain, PATHO_PAR_ID, type PathoActive } from '../content/pathologies.ts';
 import { CLASSE_PAR_ID } from '../content/classes.ts';
 import { Stage, zoneEn3D, type Vue } from './Stage.tsx';
+import type { Site } from '../render/vaisseau2d.ts';
+
+/** Vaisseau où la maladie se voit le mieux (vue Vaisseau). */
+const SITE_PATHO: Record<string, Site> = {
+  hta: 'arteriole', htaSys: 'aorte', hvg: 'arteriole', irc: 'arteriole',
+  dyslip: 'coronaire', angor: 'coronaire', idm: 'coronaire', athero: 'carotide', avc: 'carotide', aomi: 'jambe', diabete: 'jambe',
+};
 import { Moniteur } from './widgets.tsx';
 import { DETAILS_VISITE, PanneauEvolution, PanneauExplorer, PanneauMaladies, VOYAGE, type VueEvolution } from './panels.tsx';
 
@@ -39,6 +46,7 @@ export default function App() {
   const [actives, setActives] = useState<PathoActive[]>([]);
   const [focusPatho, setFocusPatho] = useState<string | null>(null);
   const [lectLoc, setLectLoc] = useState(false);
+  const [demandeEtapes, setDemandeEtapes] = useState(0);
   const [traitement, setTraitement] = useState<Traitement>({});
   const [vueEvo, setVueEvo] = useState<VueEvolution | null>(null);
   const [sonOn, setSonOn] = useState(false);
@@ -196,6 +204,8 @@ export default function App() {
               lecture={tour !== null ? { titre: 'Voyage du sang', texte: TOUR[tour].etape, detail: DETAILS_VISITE[TOUR[tour].z]?.[niveau === 1 ? 0 : 1], index: tour, total: TOUR.length, pause: tourPause }
                 : seq !== null ? { titre: 'Effet du traitement', texte: PHASES[seq].nom, detail: `PA ${etatScene.pas}/${etatScene.pad} · LDL ${etatScene.ldl.toFixed(1)} · risque d'AVC ×${etatScene.risques.avc.toFixed(1)}`, index: seq, total: PHASES.length, pause: seqPause } : null}
               onLectureLocale={setLectLoc}
+              sitePatho={focusPatho ? SITE_PATHO[focusPatho] ?? null : null}
+              demandeEtapes={demandeEtapes}
               onLecture={(a) => {
                 if (tour !== null) {
                   if (a === 'pause') setTourPause((p) => !p);
@@ -242,6 +252,8 @@ export default function App() {
             {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} etat={etatScene} actives={actives} onZone={onZone} onTogglePatho={togglePatho} onVue={setVue} onVoirPatho={(id) => { setFocusPatho(id); }} />}
             {onglet === 'maladies' && <PanneauMaladies niveau={niveau} vue={vue} zone={zone} actives={actives} focus={focusPatho} traitement={traitement} etat={etatAuj} etatSans={etatSans} labo={labo}
               onFocus={setFocusPatho} onToggle={togglePatho} onDose={onDose} onRemplacer={setTraitement} onSequence={lancerSequence} onComparer={comparer}
+              onVoir={(v) => { setTour(null); setSeq(null); setVue(v === 'coeur' ? modeCoeur : v); }}
+              onEtapes={() => { setTour(null); setSeq(null); setVue('vaisseau'); setDemandeEtapes((n) => n + 1); }}
               onSeverite={(id, s) => setActives((a) => a.map((x) => (x.id === id ? { ...x, s } : x)))} onScenario={(a) => { setActives(a); setTraitement({}); setVueEvo(null); setFocusPatho(null); if (a[0] && ZONE_LESION[a[0].id]) setZone(ZONE_LESION[a[0].id]); }} />}
             {onglet === 'evolution' && <PanneauEvolution terrain={terrain} traitement={traitement} vueEvo={vueEvo} onVueEvo={setVueEvo} onAllerTraitements={() => setOnglet('maladies')} />}
           </div>

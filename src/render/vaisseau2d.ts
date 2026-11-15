@@ -238,7 +238,11 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
       }
     }
     const nomSite = etape !== null ? `Étape ${etape + 1}/${ETAPES_ATHERO.length + 1} · ${ETAPES_ATHERO[etape].titre}` : SITES.find((s) => s.id === site)!.nom;
-    texte(`${nomSite} · rétrécissement ${pct} %`, W / 2, 40, 16, pct >= 70 ? '#fb7185' : pct >= 40 ? '#fbbf24' : '#e9eef8');
+    if (site === 'arteriole' && etape === null) {
+      // Artériole : pas de plaque, c'est le muscle qui se contracte et réduit le calibre (HTA).
+      const red = Math.max(0, Math.round((1 - p.rayon / 70) * 100));
+      texte(`${nomSite} · calibre réduit de ${red} %`, W / 2, 40, 16, red >= 15 ? '#fbbf24' : '#e9eef8');
+    } else texte(`${nomSite} · rétrécissement ${pct} %`, W / 2, 40, 16, pct >= 70 ? '#fb7185' : pct >= 40 ? '#fbbf24' : '#e9eef8');
     if (etape !== null) { /* le bandeau de lecture explique l'étape */ }
     else if (site === 'arteriole') texte(`Artériole ${p.rayon < 62 ? 'resserrée (HTA) : la résistance augmente' : 'normale'}`, W / 2, H - 40, 13, p.rayon < 62 ? '#fbbf24' : '#a4b1c7');
     else if (p.rigid > 0.35) texte('Paroi durcie : elle se dilate moins à chaque battement', W / 2, H - 40, 13, '#fbbf24');
