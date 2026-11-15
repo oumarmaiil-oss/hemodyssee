@@ -3,12 +3,6 @@ import type { ClasseId, Niveau } from '../core/types.ts';
 
 export type GroupeClasse = 'tension' | 'coeur' | 'lipides' | 'sang';
 
-export const GROUPES: Record<GroupeClasse, string> = {
-  tension: 'Antihypertenseurs',
-  coeur: 'Cœur et congestion',
-  lipides: 'Lipides',
-  sang: 'Anticoagulants et antiagrégants',
-};
 
 export interface Classe {
   id: ClasseId;

@@ -163,7 +163,7 @@ export function PanneauExplorer({ zone, niveau, vue, etat, actives, onZone, onTo
 
 // ─────────────────────────── Maladies ───────────────────────────
 
-export const SCENARIOS_RAPIDES: { nom: string; actives: PathoActive[]; tr?: Traitement }[] = [
+export const SCENARIOS_RAPIDES: { nom: string; actives: PathoActive[] }[] = [
   { nom: 'Patient hypertendu', actives: [{ id: 'hta', s: 0.7 }] },
   { nom: 'HTA + cholestérol', actives: [{ id: 'hta', s: 0.7 }, { id: 'dyslip', s: 0.7 }] },
   { nom: 'HTA + diabète + cholestérol', actives: [{ id: 'hta', s: 0.7 }, { id: 'diabete', s: 0.7 }, { id: 'dyslip', s: 0.7 }] },

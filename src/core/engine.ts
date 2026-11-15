@@ -83,7 +83,7 @@ export function calculer(base: Terrain, tr: Traitement = {}, opt: OptionsCalcul 
   const fraction = opt.fraction ?? 1;
   const t = appliquerTraitement(base, tr, fraction);
   const eBB = effetDose(tr.bb) * fraction;
-  const Rt = R0 * t.rvs * (1 + 0.15 * (1 - t.rein) * 0); // la part rénale est déjà dans rvs
+  const Rt = R0 * t.rvs;
   const contr = clamp(t.contractilite * (1 - 0.6 * t.ischemie) * (1 - 0.5 * t.occlusion), 0.15, 1.3);
 
   // Fréquence : rythme sinusal régulé par le baroréflexe ; FA rapide ; BAV complet lent.
@@ -136,7 +136,7 @@ export function calculer(base: Terrain, tr: Traitement = {}, opt: OptionsCalcul 
   const pvc = clamp(3 + 0.15 * Math.max(0, paps - 30) + 9 * t.it + 8 * Math.max(0, t.volemie - 1.05), 1, 25);
 
   // Perfusion des organes.
-  const autoregCerveau = pam < 60 ? pam / 60 : pam > 160 ? 1 : 1;
+  const autoregCerveau = pam < 60 ? pam / 60 : 1;
   const cerveau = clamp(autoregCerveau * (1 - 0.9 * Math.pow(t.plaqueCarotide, 3)) * (1 - 0.6 * t.avc), 0, 1);
   const apport = clamp((pad - pog + 5) / 65, 0, 1.5) * (1 - 0.95 * Math.pow(t.plaqueCoro, 2.2)) * (1 - 0.9 * t.occlusion);
   const besoin = (fc * pvg) / (70 * 122) * (1 + 0.5 * t.hvg) * (1 + 0.3 * t.dilatation);

@@ -10,7 +10,7 @@ import type { Instant } from '../core/clock.ts';
 import type { Etat } from '../core/types.ts';
 import type { ZoneId } from '../content/zones.ts';
 
-export type Coupe = 'aucune' | 'frontale' | 'sagittale' | 'transversale';
+export type Coupe = 'aucune' | 'frontale';
 
 export interface OptionsCoeur3D {
   onPick?: (z: ZoneId | null) => void;
@@ -788,8 +788,6 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     const avant = coupeActive;
     coupeActive = c !== 'aucune';
     if (c === 'frontale') plan.set(V(0, 0, -1), 0.05 + pos);
-    else if (c === 'sagittale') plan.set(V(-1, 0, 0), 0.1 + pos);
-    else if (c === 'transversale') plan.set(V(0, -1, 0), 0.4 + pos);
     if (avant !== coupeActive) for (const m of clippables) { m.clippingPlanes = coupeActive ? [plan] : []; m.needsUpdate = true; }
   }
 

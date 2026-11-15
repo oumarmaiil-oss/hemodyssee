@@ -4,7 +4,6 @@
  * en DCI, ce qui est plus crédible et évite toute promotion auprès du grand public.
  *
  * Pour modifier la gamme : éditer uniquement ce fichier.
- * Les entrées marquées « aVerifier » attendent la confirmation de la composition exacte.
  */
 import type { Traitement } from '../core/types.ts';
 
@@ -16,7 +15,6 @@ export interface Marque {
   composition: string;
   classe: string;
   presentations: Presentation[];
-  aVerifier?: string;
 }
 
 export const LABO = { nom: 'GHPL', sousTitre: 'Gamme cardio-métabolique' };
@@ -43,16 +41,13 @@ export const MARQUES: Marque[] = [
   {
     id: 'genvas', nom: 'Genvas®', composition: 'Statine', classe: 'Hypolipémiant',
     presentations: [{ id: 'std', nom: 'Dose standard', doses: { statine: 1 } }, { id: 'forte', nom: 'Dose forte', doses: { statine: 2 } }],
-    aVerifier: 'Molécule et dosages exacts à confirmer.',
   },
   {
     id: 'rixa', nom: 'Rixa GH®', composition: 'Anticoagulant oral direct (AOD)', classe: 'Prévention des AVC dans la fibrillation atriale',
     presentations: [{ id: 'std', nom: 'Dose standard', doses: { aod: 1 } }],
-    aVerifier: 'Molécule et dosages exacts à confirmer.',
   },
   {
     id: 'dapagen', nom: 'Dapagen®', composition: 'Dapagliflozine', classe: 'iSGLT2 (protection cœur et reins)',
     presentations: [{ id: '10', nom: 'Dapagliflozine 10 mg', doses: { isglt2: 1 } }],
-    aVerifier: 'Orthographe exacte du nom à confirmer.',
   },
 ];
