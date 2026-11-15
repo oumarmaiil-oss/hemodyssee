@@ -18,6 +18,18 @@ export type Vue = '3d' | '2d' | 'corps' | 'vaisseau';
 const ZONES_3D: ZoneId[] = ['od', 'vd', 'og', 'vg', 'valveTri', 'valvePu', 'valveMi', 'valveAo', 'noeudSinusal', 'noeudAV', 'aorte', 'artPulm', 'veinesCaves', 'veinesPulm', 'coronaires', 'carotides'];
 export const zoneEn3D = (z: ZoneId) => ZONES_3D.includes(z);
 
+/** Où chaque zone est visible. Sert à proposer la bonne vue au lieu de changer de vue tout seul. */
+const ZONES_VUE: Record<Vue, ZoneId[]> = {
+  '3d': ZONES_3D,
+  '2d': ['od', 'vd', 'og', 'vg', 'valveTri', 'valvePu', 'valveMi', 'valveAo', 'noeudSinusal', 'noeudAV', 'aorte', 'artPulm', 'veinesCaves', 'veinesPulm', 'coronaires', 'poumons', 'cerveau', 'carotides', 'reins', 'membres'],
+  corps: ['cerveau', 'carotides', 'vg', 'poumons', 'reins', 'aorte', 'membres', 'veinesCaves'],
+  vaisseau: ['coronaires', 'carotides', 'cerveau', 'membres', 'aorte', 'reins'],
+};
+export const zoneDansVue = (z: ZoneId, v: Vue) => ZONES_VUE[v].includes(z);
+export const NOMS_VUES: Record<Vue, string> = { '3d': 'Cœur', '2d': 'Voyage', corps: 'Corps', vaisseau: 'Vaisseau' };
+/** Meilleure vue pour une zone : le cœur pour ses structures, le corps pour les organes. */
+export const vuePour = (z: ZoneId): Vue => (zoneEn3D(z) ? '3d' : zoneDansVue(z, 'corps') ? 'corps' : '2d');
+
 const leger = typeof navigator !== 'undefined' && ((navigator.hardwareConcurrency ?? 8) <= 4 || /[?&]leger/.test(location.search));
 
 interface Props {
@@ -29,9 +41,10 @@ interface Props {
   son: Son;
   ralenti: boolean;
   legende: string;
+  onVue: (v: Vue) => void;
 }
 
-export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende }: Props) {
+export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const [site, setSite] = useState<Site>('coronaire');
@@ -207,6 +220,12 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende }
       {enreg && (
         <div className="absolute top-14 left-3 flex items-center gap-2 rounded-full bg-alert/20 border border-alert/60 px-3 py-1 text-xs font-semibold">
           <span className="w-2.5 h-2.5 rounded-full bg-alert animate-pulse" /> Enregistrement {Math.floor(duree / 60)}:{String(Math.floor(duree % 60)).padStart(2, '0')} · {enreg.son ? 'avec son' : 'sans son (activez le son en haut)'}
+        </div>
+      )}
+      {zone && !zoneDansVue(zone, vue) && !nomSurvol && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-ink/90 border border-accent/40 px-3 py-1 text-xs">
+          <span className="text-muted">{ZONES[zone].nom} se voit dans la vue</span>
+          <button onClick={() => onVue(vuePour(zone))} className="font-semibold text-accent">{NOMS_VUES[vuePour(zone)]} →</button>
         </div>
       )}
       {nomSurvol && (

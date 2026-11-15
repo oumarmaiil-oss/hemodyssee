@@ -73,12 +73,8 @@ export default function App() {
   const togglePatho = (id: string) => {
     if (!actives.some((x) => x.id === id)) {
       const z = ZONE_LESION[id];
-      if (z) {
-        setZone(z);
-        // Organes hors du cœur : on passe dans la vue où ils se voient.
-        if (vue === '3d' && ['poumons', 'cerveau', 'reins', 'membres'].includes(z)) setVue('corps');
-        if (vue === 'vaisseau' && !['coronaires', 'carotides', 'membres', 'aorte', 'reins', 'cerveau'].includes(z)) setVue('3d');
-      }
+      // On va sur la zone atteinte, sans changer de vue : si elle ne s'y voit pas, la scène propose la bonne vue.
+      if (z) setZone(z);
     }
     setActives((a) => {
       if (a.some((x) => x.id === id)) return a.filter((x) => x.id !== id);
@@ -118,7 +114,7 @@ export default function App() {
           </div>
 
           <div className="seg hidden lg:inline-flex" role="group" aria-label="Vue">
-            <button className={vue === '3d' ? 'actif' : ''} onClick={() => setVue('3d')}><Box size={14} className="inline -mt-0.5 hidden md:inline" /> 3D</button>
+            <button className={vue === '3d' ? 'actif' : ''} onClick={() => setVue('3d')} title="Le cœur en 3D"><Box size={14} className="inline -mt-0.5 hidden md:inline" /> Cœur</button>
             <button className={vue === '2d' ? 'actif' : ''} onClick={() => setVue('2d')}>Voyage</button>
             <button className={vue === 'corps' ? 'actif' : ''} onClick={() => setVue('corps')}>Corps</button>
             <button className={vue === 'vaisseau' ? 'actif' : ''} onClick={() => setVue('vaisseau')}>Vaisseau</button>
@@ -133,7 +129,7 @@ export default function App() {
         <div className="lg:hidden px-3 pb-2 grid sm:grid-cols-2 gap-2">
           <div className="seg w-full justify-between">{NIVEAUX.map((x) => <button key={x.n} className={`flex-1 ${niveau === x.n ? 'actif' : ''}`} onClick={() => choisirNiveau(x.n)}>{x.nom}</button>)}</div>
           <div className="seg w-full justify-between [&>button]:flex-1" role="group" aria-label="Vue">
-            <button className={vue === '3d' ? 'actif' : ''} onClick={() => setVue('3d')}><Box size={14} className="inline -mt-0.5 hidden md:inline" /> 3D</button>
+            <button className={vue === '3d' ? 'actif' : ''} onClick={() => setVue('3d')} title="Le cœur en 3D"><Box size={14} className="inline -mt-0.5 hidden md:inline" /> Cœur</button>
             <button className={vue === '2d' ? 'actif' : ''} onClick={() => setVue('2d')}>Voyage</button>
             <button className={vue === 'corps' ? 'actif' : ''} onClick={() => setVue('corps')}>Corps</button>
             <button className={vue === 'vaisseau' ? 'actif' : ''} onClick={() => setVue('vaisseau')}>Vaisseau</button>
@@ -145,7 +141,7 @@ export default function App() {
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-4 grid gap-3 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col gap-3 min-w-0">
           <div className="h-[56vh] min-h-[340px] lg:h-[calc(100vh-190px)] lg:min-h-[520px]">
-            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} legende={legende} />
+            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} legende={legende} onVue={setVue} />
           </div>
           {vueEvo && (
             <div className="rounded-xl border border-warn/40 bg-warn/8 px-3 py-2 text-[13px] flex items-center gap-2">

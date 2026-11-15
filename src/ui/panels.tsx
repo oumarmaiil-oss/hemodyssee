@@ -10,7 +10,7 @@ import { classesEnPlus, evaluerPathologie } from '../core/evaluation.ts';
 import { CLASSES, CLASSE_PAR_ID, DOSES, type Classe } from '../content/classes.ts';
 import { LABO, MARQUES } from '../content/labo.ts';
 import { GraphiqueEvolution, LEGENDE_SCENARIOS, Moniteur, Risques } from './widgets.tsx';
-import { zoneEn3D, type Vue } from './Stage.tsx';
+import { NOMS_VUES, vuePour, zoneDansVue, type Vue } from './Stage.tsx';
 
 const NIVEAUX_NOMS: Record<Niveau, string> = { 1: 'Découvrir', 2: 'Comprendre', 3: 'Approfondir' };
 
@@ -93,7 +93,7 @@ export function PanneauExplorer({ zone, niveau, vue, etat, actives, onZone, onTo
   const pathos = PATHOLOGIES.filter((p) => p.zones.includes(zone));
   const estValve = zone.startsWith('valve');
   const aus = ausculter(etat);
-  const pasDansVue = vue === '3d' && !zoneEn3D(zone);
+  const pasDansVue = !zoneDansVue(zone, vue);
   return (
     <div className="space-y-4 fade-in" key={zone}>
       <div className="flex items-start justify-between gap-2">
@@ -112,7 +112,7 @@ export function PanneauExplorer({ zone, niveau, vue, etat, actives, onZone, onTo
         )}
       </div>
       {pasDansVue && (
-        <button onClick={() => onVue('2d')} className="w-full carte p-2.5 text-sm text-accent font-semibold text-left">Cette zone se voit dans le voyage du sang : passer en 2D →</button>
+        <button onClick={() => onVue(vuePour(zone))} className="w-full carte p-2.5 text-sm text-accent font-semibold text-left">Cette zone se voit dans la vue {NOMS_VUES[vuePour(zone)]} : l'afficher →</button>
       )}
       <div className="carte p-3.5">
         <div className="titre-section mb-1.5">Comment ça marche</div>
