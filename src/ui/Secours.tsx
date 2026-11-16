@@ -13,7 +13,7 @@ export class Secours extends Component<{ children: ReactNode }, { erreur: string
           <h1 style={{ fontSize: 22, marginBottom: 8 }}>Un problème est survenu</h1>
           <p style={{ opacity: 0.75, marginBottom: 18 }}>Rechargez la page. Si cela se reproduit, signalez-le en un clic.</p>
           <button onClick={() => location.reload()} style={{ padding: '10px 18px', borderRadius: 12, background: '#e0414e', color: '#fff', fontWeight: 700, marginRight: 8 }}>Recharger</button>
-          <a href={`https://wa.me/DRSOWOUMAR?text=${texte}`} target="_blank" rel="noopener noreferrer" style={{ padding: '10px 18px', borderRadius: 12, background: '#25d366', color: '#062b14', fontWeight: 700, textDecoration: 'none' }}>Signaler</a>
+          <a href={`https://wa.me/drsowoumar?text=${texte}`} target="_blank" rel="noopener noreferrer" style={{ padding: '10px 18px', borderRadius: 12, background: '#25d366', color: '#062b14', fontWeight: 700, textDecoration: 'none' }}>Signaler</a>
         </div>
       </div>
     );

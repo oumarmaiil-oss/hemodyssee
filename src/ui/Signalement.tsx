@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Copy, MessageCircle, X } from 'lucide-react';
 
-export const WHATSAPP = 'DRSOWOUMAR';
+export const WHATSAPP = 'drsowoumar';
 
 const TYPES = ['Bug', 'Erreur médicale', 'Suggestion', 'Autre'] as const;
 
