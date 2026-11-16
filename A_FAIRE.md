@@ -5,10 +5,7 @@ Mis à jour le 16 novembre 2026.
 ## En attente du Dr Sow
 - [ ] **Fusionner la pull request n° 1** vers `main` (sinon le site en ligne ne change pas) :
       https://github.com/oumarmaiil-oss/hemodyssee/pull/1
-- [ ] **GoatCounter** : créer le compte, puis donner le *code* (Account name).
-      Ensuite : ajouter dans `index.html`
-      `<script data-goatcounter="https://CODE.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>`
-      (ne compte pas les visites en `localhost`).
+- [x] **GoatCounter** installé (tableau de bord : https://marsow.goatcounter.com).
 - [ ] **Adresse mail** à afficher dans la signature (pied de page de `src/ui/App.tsx`) et dans `LICENSE`.
 - [ ] **Essai sur un vrai téléphone Android d'entrée de gamme** : fluidité du cœur 3D, ouverture
       de la fenêtre Contact, présentation « HTA non contrôlée ». Les tests ont été faits sur
