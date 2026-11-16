@@ -465,8 +465,8 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
           </div>
         </div>
       ) : (vue === '3d' || vue === '2d') && pret && (
-        <button onClick={onVoyage3D} className="absolute bottom-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-sang hover:brightness-110 text-white text-[12px] font-bold pl-2.5 pr-3.5 py-1.5 inline-flex items-center gap-1.5 shadow-[0_4px_18px_rgba(224,65,78,.45)]">
-          <Play size={13} fill="currentColor" /> Voir le voyage du sang
+        <button onClick={onVoyage3D} aria-label="Voir le voyage du sang" className="absolute bottom-2 sm:bottom-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-sang/90 sm:bg-sang hover:brightness-110 active:scale-95 transition-transform text-white text-[11px] sm:text-[12px] font-bold pl-2 pr-2.5 py-1 sm:pl-2.5 sm:pr-3.5 sm:py-1.5 inline-flex items-center gap-1 sm:gap-1.5 shadow-[0_2px_10px_rgba(224,65,78,.35)] sm:shadow-[0_4px_18px_rgba(224,65,78,.45)]">
+          <Play size={11} fill="currentColor" className="sm:hidden" /><Play size={13} fill="currentColor" className="hidden sm:block" /> <span className="sm:hidden">Voyage</span><span className="hidden sm:inline">Voir le voyage du sang</span>
         </button>
       )}
 
