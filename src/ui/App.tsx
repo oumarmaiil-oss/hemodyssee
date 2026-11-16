@@ -1,6 +1,7 @@
 /** Application Hémodyssée : état global, mise en page, en-tête et accueil. */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Map, Play, RefreshCw, Share2, TrendingUp, X } from 'lucide-react';
+import { apresDelaiEtVoix } from '../core/voix.ts';
 import { IconeContact, partagerApp, Signalement, WHATSAPP, WHATSAPP_AFFICHE } from './Signalement.tsx';
 import { calculer, fractionAu, evoluer, TERRAIN_NORMAL } from '../core/engine.ts';
 import { Son } from '../core/audio.ts';
@@ -95,8 +96,7 @@ export default function App() {
     if (tour === null) return;
     setZone(TOUR[tour].z);
     if (tourPause) return;
-    const t = setTimeout(() => setTour((k) => (k === null || k >= TOUR.length - 1 ? null : k + 1)), 5200);
-    return () => clearTimeout(t);
+    return apresDelaiEtVoix(5200, () => setTour((k) => (k === null || k >= TOUR.length - 1 ? null : k + 1)));
   }, [tour, tourPause]);
   useEffect(() => { if (vue !== '3d') setTour(null); }, [vue]);
   useEffect(() => { if (tour === null) setTourPause(false); }, [tour]);
@@ -108,8 +108,7 @@ export default function App() {
     if (seq === null) return;
     setVueEvo({ scenario: 'avec', mois: PHASES[seq].mois, arret: 24 });
     if (seqPause) return;
-    const t = setTimeout(() => setSeq((k) => (k === null || k >= PHASES.length - 1 ? null : k + 1)), 2600);
-    return () => clearTimeout(t);
+    return apresDelaiEtVoix(2600, () => setSeq((k) => (k === null || k >= PHASES.length - 1 ? null : k + 1)));
   }, [seq, seqPause]);
   useEffect(() => { if (seq === null) setSeqPause(false); }, [seq]);
   // Présentations guidées (délégué, enseignant) : la scène s'enchaîne seule ; à l'arrêt, on retrouve l'état d'avant.
@@ -134,8 +133,7 @@ export default function App() {
     if (!pres || pres.pause || !etapePres) return;
     const n = PRESENTATION_PAR_ID[pres.id].etapes.length;
     if (pres.i >= n - 1) return;
-    const t = setTimeout(() => setPres((p) => (p ? { ...p, i: Math.min(n - 1, p.i + 1) } : p)), etapePres.duree ?? 6500);
-    return () => clearTimeout(t);
+    return apresDelaiEtVoix(etapePres.duree ?? 6500, () => setPres((p) => (p ? { ...p, i: Math.min(n - 1, p.i + 1) } : p)));
   }, [pres]);
   // Un changement de vue fait à la main met fin à la présentation (sans revenir en arrière).
   useEffect(() => { if (pres && etapePres && vue !== etapePres.vue) { setPres(null); avantPres.current = null; } }, [vue]);
@@ -227,8 +225,8 @@ export default function App() {
             <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} sonOn={sonOn} onSon={basculerSon} onRalenti={() => setRalenti((v) => !v)} legende={legende} onVue={setVue}
               onVoyage3D={() => { setSeq(null); setPres(null); setVue('3d'); setTourPause(false); setTour(0); }}
               tourActif={tour !== null}
-              lecture={tour !== null ? { titre: 'Voyage du sang', texte: TOUR[tour].etape, detail: DETAILS_VISITE[TOUR[tour].z]?.[niveau === 1 ? 0 : 1], index: tour, total: TOUR.length, pause: tourPause }
-                : pres && etapePres ? { titre: PRESENTATION_PAR_ID[pres.id].titre, texte: etapePres.texte(labo), detail: etapePres.detail?.(etatScene, etatSansMois ?? etatSans, labo), index: pres.i, total: PRESENTATION_PAR_ID[pres.id].etapes.length, pause: pres.pause }
+              lecture={tour !== null ? { titre: 'Voyage du sang', texte: TOUR[tour].etape, detail: DETAILS_VISITE[TOUR[tour].z]?.[niveau === 1 ? 0 : 1], index: tour, total: TOUR.length, pause: tourPause, voixDetail: true }
+                : pres && etapePres ? { titre: PRESENTATION_PAR_ID[pres.id].titre, texte: etapePres.texte(labo), detail: etapePres.detail?.(etatScene, etatSansMois ?? etatSans, labo), index: pres.i, total: PRESENTATION_PAR_ID[pres.id].etapes.length, pause: pres.pause, voixDetail: true }
                 : seq !== null ? { titre: 'Effet du traitement', texte: PHASES[seq].nom, detail: `PA ${etatScene.pas}/${etatScene.pad} · LDL ${etatScene.ldl.toFixed(1)} · risque d'AVC ×${etatScene.risques.avc.toFixed(1)}`, index: seq, total: PHASES.length, pause: seqPause } : null}
               onLectureLocale={setLectLoc}
               sitePatho={etapePres?.site ?? (focusPatho ? SITE_PATHO[focusPatho] ?? null : null)}

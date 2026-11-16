@@ -1,5 +1,6 @@
 /** Scène principale : cœur 3D ou voyage du sang 2D, animés par une horloge commune. */
 import { useEffect, useRef, useState } from 'react';
+import { apresDelaiEtVoix, choisirVoix, textePrononcable } from '../core/voix.ts';
 import { Activity, Camera, Circle, Layers, Pause, Speech, Play, RotateCcw, Scissors, SkipBack, SkipForward, Snail, Square, Tag, Volume2, VolumeX, X } from 'lucide-react';
 import { Horloge, NOMS_PHASES, type Phase } from '../core/clock.ts';
 import type { Son } from '../core/audio.ts';
@@ -66,7 +67,7 @@ interface Props {
   onRetour: () => void;
 }
 
-export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean }
+export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean; /** La voix off lit aussi l'explication. */ voixDetail?: boolean }
 
 export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage3D, tourActif, lecture: lectureApp, onLecture: onLectureApp, onLectureLocale, sitePatho, demandeEtapes = 0, peutRetour, onRetour }: Props) {
   const hote = useRef<HTMLDivElement>(null);
@@ -227,8 +228,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
   };
   useEffect(() => {
     if (!ath || ath.pause || ath.i >= N_ATH - 1) return;
-    const id = setTimeout(() => allerAth(ath.i + 1), 5200);
-    return () => clearTimeout(id);
+    return apresDelaiEtVoix(5200, () => allerAth(ath.i + 1));
   }, [ath, vue]);
   // Un changement de vue fait à la main, ou une autre lecture, arrête la démonstration.
   useEffect(() => { if (ath && vue !== vueAth(ath.i)) setAth(null); }, [vue]);
@@ -250,22 +250,33 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
     ...(ath.i < ETAPES_ATHERO.length
       ? { texte: `${ETAPES_ATHERO[ath.i].titre} : ${ETAPES_ATHERO[ath.i].texte}`, detail: ETAPES_ATHERO[ath.i].detail }
       : { texte: 'Le caillot voyage : un fragment parti d\'une plaque carotidienne bouche une artère du cerveau (AVC ischémique).', detail: 'Sur une plaque coronaire, le caillot provoque l\'infarctus ; dans une artère de jambe, l\'ischémie aiguë du membre.' }),
-    index: ath.i, total: N_ATH, pause: ath.pause,
+    index: ath.i, total: N_ATH, pause: ath.pause, voixDetail: true,
   } : null);
   // Voix off : lit chaque étape à voix haute (voix française de l'appareil, si elle existe).
   const voixDispo = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const [voix, setVoix] = useState(() => { try { return localStorage.getItem('hemo.voix') === '1'; } catch { return false; } });
   useEffect(() => { try { localStorage.setItem('hemo.voix', voix ? '1' : '0'); } catch { /* stockage indisponible */ } }, [voix]);
-  const texteLu = lecture && !lecture.pause ? lecture.texte : null;
+  // Texte lu : la phrase de l'étape, puis son explication (chiffres compris), rendus prononçables.
+  const texteLu = lecture && !lecture.pause ? [lecture.texte, lecture.voixDetail ? lecture.detail : null].filter(Boolean).join('. ') : null;
+  // Meilleure voix française de l'appareil (les voix arrivent parfois après le chargement).
+  const voixChoisie = useRef<SpeechSynthesisVoice | null>(null);
+  useEffect(() => {
+    if (!voixDispo) return;
+    const maj = () => { voixChoisie.current = choisirVoix(speechSynthesis.getVoices()); };
+    maj(); speechSynthesis.addEventListener?.('voiceschanged', maj);
+    return () => speechSynthesis.removeEventListener?.('voiceschanged', maj);
+  }, []);
   useEffect(() => {
     if (!voixDispo) return;
     speechSynthesis.cancel();
     if (!voix || !texteLu) return;
-    const u = new SpeechSynthesisUtterance(texteLu.replace(/®/g, ''));
-    u.lang = 'fr-FR'; u.rate = 1.02;
-    const fr = speechSynthesis.getVoices().find((v) => v.lang?.toLowerCase().startsWith('fr'));
-    if (fr) u.voice = fr;
-    speechSynthesis.speak(u);
+    const u = new SpeechSynthesisUtterance(textePrononcable(texteLu));
+    const v = voixChoisie.current ?? choisirVoix(speechSynthesis.getVoices());
+    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'fr-FR';
+    u.rate = 0.97; u.pitch = 1;
+    // Petit délai : laisse la scène changer avant de parler, et contourne un blocage connu de Chrome après cancel().
+    const t = setTimeout(() => speechSynthesis.speak(u), 120);
+    return () => clearTimeout(t);
   }, [voix, texteLu]);
   useEffect(() => () => { if (voixDispo) speechSynthesis.cancel(); }, []);
 
