@@ -222,7 +222,7 @@ export default function App() {
     <>
         <p>Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</p>
         <p className="flex flex-wrap items-center justify-center gap-x-1.5">
-          © 2026 Hémodyssée · Dr Oumar Sow · Dakar
+          © 2026 Hémodyssée · Dr O. Sow · Dakar
           <svg viewBox="0 0 30 20" width="18" height="12" aria-label="Drapeau du Sénégal" role="img" className="inline rounded-[2px]">
             <rect width="10" height="20" fill="#00853F" /><rect x="10" width="10" height="20" fill="#FDEF42" /><rect x="20" width="10" height="20" fill="#E31B23" />
             <polygon fill="#00853F" points="15,6.2 15.95,9.1 19,9.1 16.53,10.9 17.47,13.8 15,12 12.53,13.8 13.47,10.9 11,9.1 14.05,9.1" />

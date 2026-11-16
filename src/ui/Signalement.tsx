@@ -63,7 +63,7 @@ export function Signalement({ contexte, onClose }: { contexte: string; onClose: 
       <div className="max-w-lg w-full max-h-[90dvh] overflow-y-auto rounded-3xl border border-line bg-panel p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start"><h2 className="font-display text-2xl">Contacter ou signaler</h2><button className="btn-icone !w-11 !h-11 -mt-1 -mr-1 active:scale-95 transition-transform" onClick={onClose} aria-label="Fermer"><X size={15} /></button></div>
         <Illustration />
-        <p className="text-sm text-muted -mt-1">Une question, une erreur, une idée ? Écrivez directement au Dr Oumar Sow.</p>
+        <p className="text-sm text-muted -mt-1">Une question, une erreur, une idée ? Écrivez directement au Dr O. Sow.</p>
         <div className="seg !grid grid-cols-2 sm:grid-cols-4 w-full" role="radiogroup" aria-label="Type">{TYPES.map((t) => <button key={t} role="radio" aria-checked={type === t} className={`min-h-10 touch-manipulation transition-colors active:bg-card2 ${type === t ? 'actif' : ''}`} onClick={() => setType(t)}>{t}</button>)}</div>
         <textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={4} placeholder="Ce que vous avez vu, ce qui devrait se passer…" className="w-full rounded-xl bg-card border border-line p-3 text-base sm:text-sm outline-none focus:border-accent/60" />
         <details className="text-xs text-dim"><summary className="cursor-pointer py-2 -my-1">Contexte joint automatiquement</summary><pre className="whitespace-pre-wrap mt-1.5 font-mono text-[11px]">{contexte}</pre></details>

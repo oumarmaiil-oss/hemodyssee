@@ -66,7 +66,7 @@ grandeur, pas l'évolution d'un patient réel. Il ne remplace ni l'avis médical
 Usage commercial, version personnalisée ou partenariat : contacter l'auteur.
 
 ## Auteur
-**Dr Oumar Sow**, pharmacien, Dakar (Sénégal). WhatsApp : +221 77 414 47 99 · courriel : oumarmaiil@gmail.com.
+**Dr O. Sow**, pharmacien, Dakar (Sénégal). WhatsApp : +221 77 414 47 99 · courriel : oumarmaiil@gmail.com.
 
 ---
 
@@ -76,4 +76,4 @@ circulation, cardiovascular diseases and how treatments work, with a 3D heart, g
 with voice-over and clinical cases. Built in Dakar, Senegal. Works offline on any phone.
 Code: AGPL-3.0 · Content: CC BY-NC-SA 4.0 · Contributions welcome (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 
-© 2026 Dr Oumar Sow et contributeurs.
+© 2026 Dr O. Sow et contributeurs.
