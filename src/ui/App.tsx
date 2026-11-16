@@ -196,7 +196,7 @@ export default function App() {
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-7 h-7 rounded-full bg-gradient-to-br from-sang to-[#7a1424] grid place-items-center shadow-[0_0_18px_rgba(224,65,78,.45)]"><HeartPulse size={16} /></span>
             <div className="leading-tight min-w-0">
-              <div className="font-display text-[17px] sm:text-[19px] font-bold">Hémodyssée</div>
+              <div className="font-display text-[17px] sm:text-[19px] font-bold flex items-center gap-1.5">Hémodyssée <span title="Version bêta : vos retours sont les bienvenus (bouton Contact)" className="font-sans text-[9px] font-bold uppercase tracking-wider text-accent border border-accent/40 rounded px-1 py-px leading-none">Bêta</span></div>
               <div className="text-[10.5px] text-dim hidden md:block">Le voyage du sang, du cœur aux organes</div>
             </div>
           </div>
