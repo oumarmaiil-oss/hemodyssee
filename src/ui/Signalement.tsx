@@ -6,6 +6,18 @@ import { Copy, MessageCircle, X, type LucideProps } from 'lucide-react';
 export const WHATSAPP = '221774144799';
 export const WHATSAPP_AFFICHE = '+221 77 414 47 99';
 
+const URL_APP = 'https://oumarmaiil-oss.github.io/hemodyssee/';
+const TEXTE_PARTAGE = 'Hémodyssée : comprendre le cœur, la tension, le cholestérol et l\'effet des traitements, en images. Gratuit, fonctionne sur téléphone.';
+
+/** Partage du lien de l'application : feuille de partage du téléphone, sinon WhatsApp. */
+export async function partagerApp() {
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Hémodyssée', text: TEXTE_PARTAGE, url: URL_APP }); return; }
+    catch (e) { if ((e as Error)?.name === 'AbortError') return; }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(`${TEXTE_PARTAGE}\n${URL_APP}`)}`, '_blank', 'noopener');
+}
+
 /** Pictogramme « contacter » : bulle de discussion avec un cœur. */
 export function IconeContact({ size = 16, ...p }: LucideProps) {
   return (

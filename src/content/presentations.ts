@@ -31,6 +31,9 @@ const HTA: PathoActive[] = [{ id: 'hta', s: 0.7 }];
 const LDL: PathoActive[] = [{ id: 'dyslip', s: 1 }];
 const FA: PathoActive[] = [{ id: 'fa', s: 0.7 }];
 const BITHERAPIE: Traitement = { iec: 1, ica: 1 };
+const HTA_SEVERE: PathoActive[] = [{ id: 'hta', s: 1 }];
+const MONO: Traitement = { ica: 1 };
+const TRITHERAPIE: Traitement = { iec: 1, thiazide: 1, ica: 1 };
 
 export const PRESENTATIONS: PresentationGuidee[] = [
   {
@@ -65,6 +68,16 @@ export const PRESENTATIONS: PresentationGuidee[] = [
       { vue: 'corps', zone: null, actives: FA, traitement: {}, duree: 8000, texte: () => 'Le caillot part vers le cerveau : c\'est l\'AVC.', detail: () => 'La fibrillation atriale multiplie le risque d\'AVC par environ 5.' },
       { vue: '3d', zone: 'og', actives: FA, traitement: { aod: 1, bb: 1 }, texte: (l) => l ? 'Rixa GH® (anticoagulant oral direct) + un bêtabloquant.' : 'Anticoagulant oral direct + un bêtabloquant.', detail: (e) => `Le caillot ne se forme plus ; le cœur ralentit à ${e.fc}/min.` },
       { vue: 'corps', zone: null, actives: FA, traitement: { aod: 1, bb: 1 }, texte: () => 'Plus de caillot qui part : le cerveau est protégé.', detail: (e, s) => `Risque d'AVC −${pct(s.risques.avc, e.risques.avc)} % (anticoagulation : environ deux AVC sur trois évités).` },
+    ],
+  },
+  {
+    id: 'visite', titre: 'HTA non contrôlée', pour: 'De la monothérapie à la trithérapie',
+    etapes: [
+      { vue: 'corps', zone: null, actives: HTA_SEVERE, traitement: MONO, texte: () => 'Ce patient hypertendu prend un seul médicament.', detail: (e) => `${pa(e)} sous amlodipine seule : toujours au-dessus de 140/90. La plupart des hypertendus ont besoin de plus d'un médicament.` },
+      { vue: 'vaisseau', site: 'arteriole', actives: HTA_SEVERE, traitement: BITHERAPIE, texte: (l) => l ? 'On passe à Amloperin® : périndopril + amlodipine, un seul comprimé.' : 'On associe un IEC à l\'amlodipine, dans un seul comprimé.', detail: (e) => `${pa(e)} : mieux, mais encore au-dessus de l'objectif. Deux mécanismes complémentaires : vasodilatation et blocage du système rénine-angiotensine.` },
+      { vue: 'vaisseau', site: 'arteriole', actives: HTA_SEVERE, traitement: TRITHERAPIE, texte: (l) => l ? 'Tensoplus® : périndopril + indapamide + amlodipine.' : 'Trithérapie : IEC + diurétique thiazidique + amlodipine.', detail: (e) => `${pa(e)} : sous 140/90. Les recommandations européennes (ESH 2023) proposent cette association de trois classes, de préférence en un seul comprimé, quand la bithérapie ne suffit pas.` },
+      { vue: '3d', zone: 'aorte', actives: HTA_SEVERE, traitement: TRITHERAPIE, texte: () => 'Le cœur travaille moins.', detail: (e, s) => `Post-charge ×${s.postcharge.toFixed(2)} → ×${e.postcharge.toFixed(2)}. Un seul comprimé par jour : l'observance est meilleure qu'avec trois boîtes séparées.` },
+      { vue: 'corps', zone: null, actives: HTA_SEVERE, traitement: TRITHERAPIE, evo: { scenario: 'avec', mois: 60 }, texte: () => 'Sur 5 ans : moins d\'AVC, d\'infarctus et d\'insuffisance cardiaque.', detail: (e, s) => `Risque d'AVC −${pct(s.risques.avc, e.risques.avc)} %, risque coronaire −${pct(s.risques.coronaire, e.risques.coronaire)} % par rapport à l'absence de traitement. Objectif ensuite : 120 à 129 de systolique si c'est bien toléré.` },
     ],
   },
 ];

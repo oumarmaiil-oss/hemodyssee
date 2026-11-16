@@ -1,7 +1,7 @@
 /** Application Hémodyssée : état global, mise en page, en-tête et accueil. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Map, Play, RefreshCw, Snail, TrendingUp, Volume2, VolumeX, X } from 'lucide-react';
-import { IconeContact, Signalement, WHATSAPP, WHATSAPP_AFFICHE } from './Signalement.tsx';
+import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Map, Play, RefreshCw, Share2, Snail, TrendingUp, Volume2, VolumeX, X } from 'lucide-react';
+import { IconeContact, partagerApp, Signalement, WHATSAPP, WHATSAPP_AFFICHE } from './Signalement.tsx';
 import { calculer, fractionAu, evoluer, TERRAIN_NORMAL } from '../core/engine.ts';
 import { Son } from '../core/audio.ts';
 import type { ClasseId, Niveau, Traitement } from '../core/types.ts';
@@ -208,6 +208,7 @@ export default function App() {
           <button onClick={() => setRalenti((v) => !v)} className={`btn-icone hidden sm:grid ${ralenti ? 'actif' : ''}`} title="Ralenti" aria-label="Ralenti"><Snail size={16} /></button>
           <button onClick={() => setLabo((v) => !v)} className={`btn-icone ${labo ? 'actif' : ''}`} title="Mode labo (gamme commerciale)" aria-label="Mode labo"><Briefcase size={16} /></button>
           {installer && <button onClick={() => { void installer.prompt(); setInstaller(null); }} className="btn-icone actif" title="Installer l'application" aria-label="Installer l'application"><Download size={16} /></button>}
+          <button onClick={() => void partagerApp()} className="btn-icone" title="Partager l'application" aria-label="Partager l'application"><Share2 size={16} /></button>
           <button onClick={() => setSignaler(true)} className="btn-icone !text-[#25d366] !border-[#25d366]/40 !bg-[#25d366]/10" title="Contacter l'auteur, signaler un problème ou suggérer" aria-label="Contacter ou signaler"><IconeContact size={17} /></button>
         </div>
         <div className="lg:hidden px-2 pb-1.5 grid sm:grid-cols-2 gap-1.5">
@@ -310,6 +311,7 @@ export default function App() {
           </svg>
           · <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">WhatsApp {WHATSAPP_AFFICHE}</a>
           · v{__VERSION__}
+          · <button onClick={() => void partagerApp()} className="underline decoration-dotted hover:text-txt">Partager l'application</button>
         </p>
         <details className="max-w-xl mx-auto text-left">
           <summary className="cursor-pointer text-center py-1 hover:text-txt">Sources des chiffres</summary>

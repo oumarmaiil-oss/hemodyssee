@@ -121,3 +121,11 @@ test('évaluation : IC à FE réduite compte les piliers, classes ajoutées sans
   assert.ok(evaluerPathologie('icfer', act, calculer(t, tr), tr).some((p) => p.texte.startsWith('2 piliers')));
   assert.deepEqual(classesEnPlus([{ id: 'dyslip', s: 0.7 }], { statine: 1, aod: 1 }), ['aod']);
 });
+
+test('présentation « HTA non contrôlée » : mono et bithérapie insuffisantes, trithérapie sous 140/90', () => {
+  const t = construireTerrain(TERRAIN_NORMAL, [{ id: 'hta', s: 1 }]);
+  const mono = calculer(t, { ica: 1 }), bi = calculer(t, { iec: 1, ica: 1 }), tri = calculer(t, { iec: 1, thiazide: 1, ica: 1 });
+  assert.ok(mono.pas >= 140, `mono ${mono.pas}`);
+  assert.ok(bi.pas >= 140 || bi.pad >= 90, `bi ${bi.pas}/${bi.pad}`);
+  assert.ok(tri.pas < 140 && tri.pad < 90, `tri ${tri.pas}/${tri.pad}`);
+});

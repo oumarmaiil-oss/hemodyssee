@@ -273,7 +273,7 @@ export function PanneauMaladies(props: {
         <>
           <div>
             <div className="titre-section mb-2">Présentations guidées · 2 à 3 min, sans rien toucher</div>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               {PRESENTATIONS.map((p) => (
                 <button key={p.id} onClick={() => props.onPresentation(p.id)} className="carte p-2 text-left hover:border-sang/50">
                   <div className="flex items-center gap-1 text-[13px] font-bold"><Play size={11} fill="currentColor" className="text-sang shrink-0" /> {p.titre}</div>

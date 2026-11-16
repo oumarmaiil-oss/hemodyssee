@@ -133,10 +133,25 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
   // Boucle d'animation unique.
   useEffect(() => {
     let raf = 0, last = performance.now(), dernierePhase: Phase | null = null;
+    // Qualité adaptative : si l'appareil peine (moins de ~24 images/s mesurées sur 2 s),
+    // on ne redessine la scène qu'une image sur deux ; on revient à la normale s'il se rétablit.
+    let saut = 1, compteur = 0, cumulDt = 0, fenetre = 0, images = 0, retours = 0;
     const boucle = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      const dtBrut = (now - last) / 1000; last = now;
+      const dt = Math.min(0.05, dtBrut);
+      if (visible.current && !captureRef.current && !document.hidden) {
+        fenetre += dtBrut; images++;
+        if (fenetre >= 2) {
+          const fps = images / fenetre;
+          if (saut === 1 && fps < 24) saut = 2;
+          else if (saut === 2 && fps > 55 && retours < 2) { saut = 1; retours++; } // pas d'oscillation sans fin
+          fenetre = 0; images = 0;
+        }
+      }
       const i = horloge.current.avancer(dt);
-      if (visible.current || captureRef.current) rendu.current?.frame(i, dt);
+      cumulDt += dt; compteur++;
+      const dessiner = captureRef.current || compteur % saut === 0;
+      if (dessiner && (visible.current || captureRef.current)) { rendu.current?.frame(i, Math.min(0.1, cumulDt)); cumulDt = 0; }
       if (visible.current) moteurTraces.current?.frame(i, dt, etatRef.current);
       if (captureRef.current) { const c = hote.current?.querySelector('canvas'); if (c) captureRef.current(c); }
       son.tick(i, etatRef.current);
