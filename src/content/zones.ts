@@ -125,7 +125,7 @@ export const ZONES: Record<ZoneId, Zone> = {
       2: 'Son élasticité amortit l\'éjection (effet « Windkessel ») et maintient la pression pendant la diastole. Elle se rigidifie avec l\'âge et l\'hypertension.',
       3: 'La compliance aortique détermine la pression pulsée ; la rigidité se mesure par la vitesse de l\'onde de pouls (VOP > 10 m/s = atteinte d\'organe).',
     },
-    chiffres: 'PA normale < 140/90 mmHg au cabinet (cible souvent 120-129 de systolique)',
+    chiffres: 'HTA si PA ≥ 140/90 mmHg au cabinet · cible souvent 120-129 de systolique si bien tolérée',
   },
   coronaires: {
     id: 'coronaires', nom: 'Artères coronaires', sang: 'rouge',
@@ -140,7 +140,7 @@ export const ZONES: Record<ZoneId, Zone> = {
     role: {
       1: 'Les artères du cou qui apportent le sang au cerveau.',
       2: 'Elles portent les barorécepteurs, capteurs de pression qui régulent la fréquence cardiaque et le tonus des vaisseaux à chaque instant.',
-      3: 'Leur bifurcation est un site privilégié d\'athérome ; une sténose symptomatique ≥ 70 % fait discuter une chirurgie.',
+      3: 'Leur bifurcation est un site privilégié d\'athérome ; une sténose symptomatique ≥ 50 % (surtout ≥ 70 %) fait discuter une chirurgie ou un stent.',
     },
   },
   cerveau: {

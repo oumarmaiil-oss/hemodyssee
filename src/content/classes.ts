@@ -101,7 +101,7 @@ export const CLASSES: Classe[] = [
     mecanisme: {
       1: 'Il calme le cœur : il bat moins vite et moins fort, il consomme moins d\'oxygène.',
       2: 'Il bloque les récepteurs bêta-1 de l\'adrénaline sur le cœur : baisse de la fréquence et de la contractilité, baisse de la rénine. Il est indispensable après un infarctus, dans l\'IC et pour ralentir une FA.',
-      3: 'Allonge la diastole (meilleure perfusion coronaire et meilleur remplissage dans le rétrécissement mitral). En HTA isolée, ce n\'est pas toujours le premier choix. Contre-indiqué dans le BAV de haut degré et l\'asthme sévère.',
+      3: 'Allonge la diastole (meilleure perfusion coronaire et meilleur remplissage dans le rétrécissement mitral). En HTA isolée, ce n\'est pas toujours le premier choix. Contre-indiqué dans le BAV de haut degré non appareillé. Dans l\'asthme : non sélectifs contre-indiqués ; un cardiosélectif (bisoprolol, nébivolol) reste possible avec prudence.',
     },
     effetVisible: 'Le cœur ralentit ; le besoin en oxygène baisse. En FA, la fréquence ventriculaire diminue.',
     indesirables: ['Bradycardie, fatigue', 'Bronchospasme chez l\'asthmatique', 'Extrémités froides, troubles de l\'érection'],
@@ -152,10 +152,10 @@ export const CLASSES: Classe[] = [
     arret: 'La protection disparaît en 24 à 48 h : risque immédiat d\'AVC en FA.',
   },
   {
-    id: 'aspirine', nom: 'Antiagrégant plaquettaire (aspirine)', court: 'Aspirine', exemples: 'aspirine faible dose, clopidogrel', groupe: 'sang', couleur: '#fca5a5', cible: 'Plaquettes',
+    id: 'aspirine', nom: 'Antiagrégant plaquettaire (aspirine)', court: 'Aspirine', exemples: 'aspirine faible dose (75-100 mg), clopidogrel', groupe: 'sang', couleur: '#fca5a5', cible: 'Plaquettes',
     mecanisme: {
       1: 'Elle empêche les plaquettes de s\'agglutiner sur une plaque abîmée : elle prévient le caillot dans les artères.',
-      2: 'Elle bloque la cyclo-oxygénase des plaquettes de façon irréversible (durée de vie d\'une plaquette : 7 à 10 jours). Utile après un infarctus, un AVC athéromateux ou en cas d\'artériopathie.',
+      2: 'L\'aspirine bloque la cyclo-oxygénase des plaquettes de façon irréversible (durée de vie d\'une plaquette : 7 à 10 jours) ; le clopidogrel bloque leur récepteur P2Y12. Utile après un infarctus, un AVC athéromateux ou en cas d\'artériopathie.',
       3: 'En prévention primaire, le bénéfice est faible face au risque de saignement. Dans la FA, elle ne remplace pas un anticoagulant.',
     },
     effetVisible: 'Moins de risque de caillot sur les plaques artérielles.',
