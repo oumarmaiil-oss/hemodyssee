@@ -1,6 +1,6 @@
 # Licences d'Hémodyssée
 
-© 2026 Dr Oumar Sow (Dakar, Sénégal) et contributeurs.
+© 2026 Dr O. Sow (Dakar, Sénégal) et contributeurs.
 
 Hémodyssée a **deux licences** : une pour le code, une pour le contenu pédagogique.
 
@@ -25,7 +25,7 @@ questions, illustrations et images, dossier `src/content` hors `labo.ts`) est pu
 Texte juridique : https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode.fr
 
 En résumé :
-- **Attribution** : citer « Hémodyssée, Dr Oumar Sow » avec un lien vers
+- **Attribution** : citer « Hémodyssée, Dr O. Sow » avec un lien vers
   https://oumarmaiil-oss.github.io/hemodyssee/ ;
 - **Pas d'utilisation commerciale** sans accord écrit de l'auteur ;
 - **Partage dans les mêmes conditions** : les adaptations restent sous cette licence.
