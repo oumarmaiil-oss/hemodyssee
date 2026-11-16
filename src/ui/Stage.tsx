@@ -1,7 +1,7 @@
 /** Scène principale : cœur 3D ou voyage du sang 2D, animés par une horloge commune. */
 import { useEffect, useRef, useState } from 'react';
 import { apresDelaiEtVoix, choisirVoix, textePrononcable } from '../core/voix.ts';
-import { Activity, Camera, Circle, Layers, Pause, Speech, Play, RotateCcw, Scissors, SkipBack, SkipForward, Snail, Square, Tag, Volume2, VolumeX, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Activity, Camera, Circle, Layers, Pause, Speech, Play, RotateCcw, RotateCw, Scissors, SkipBack, SkipForward, Snail, Square, Tag, Volume2, VolumeX, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Horloge, NOMS_PHASES, type Phase } from '../core/clock.ts';
 import type { Son } from '../core/audio.ts';
 import type { Etat, Niveau } from '../core/types.ts';
@@ -252,13 +252,29 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
       : { texte: 'Le caillot voyage : un fragment parti d\'une plaque carotidienne bouche une artère du cerveau (AVC ischémique).', detail: 'Sur une plaque coronaire, le caillot provoque l\'infarctus ; dans une artère de jambe, l\'ischémie aiguë du membre.' }),
     index: ath.i, total: N_ATH, pause: ath.pause, voixDetail: true,
   } : null);
+  // Cadrage : les dessins 2D tiennent dans la partie de la scène que les boutons ne couvrent pas
+  // (barre d'outils en haut, colonne son/zoom à gauche, ECG et lecture en bas).
+  const [tailleScene, setTailleScene] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = hote.current?.parentElement; if (!el) return;
+    const ro = new ResizeObserver(() => setTailleScene({ w: el.clientWidth, h: el.clientHeight }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    const r = rendu.current as { setMarges?: (m: { haut: number; bas: number; gauche: number; droite: number }) => void } | null;
+    if (!pret || !r?.setMarges) return;
+    const large = window.innerWidth >= 1024;
+    const decalageHote = lecture && !large ? 92 : 0; // sur téléphone, la scène rétrécit au-dessus du panneau de lecture
+    const bande = traces === 'aucun' || !avecTraces ? 0 : (traces === 'tout' ? 124 : 58) * (tailleScene.h >= 420 ? 1 : 0.5);
+    const basScene = Math.max(lecture ? 92 : 34, bande ? (lecture ? 74 : 40) + bande : 0);
+    r.setMarges({ haut: 46, gauche: 46, droite: 10, bas: Math.max(8, basScene - decalageHote) });
+  }, [pret, vue, traces, avecTraces, !!lecture, tailleScene]);
+
   // Astuce 3D : « glissez pour faire tourner », jusqu'au premier geste sur le cœur (mémorisé sur l'appareil).
-  const [astuce3D, setAstuce3D] = useState(() => { try { return localStorage.getItem('hemo.astuce3d') !== '1'; } catch { return true; } });
-  const geste3D = () => {
-    if (!astuce3D || vue !== '3d') return;
-    setAstuce3D(false);
-    try { localStorage.setItem('hemo.astuce3d', '1'); } catch { /* stockage indisponible */ }
-  };
+  // Grande astuce animée à chaque ouverture (l'appareil peut être prêté), puis pastille discrète permanente.
+  const [astuce3D, setAstuce3D] = useState(true);
+  const geste3D = () => { if (astuce3D && vue === '3d') setAstuce3D(false); };
   // Voix off : lit chaque étape à voix haute (voix française de l'appareil, si elle existe).
   const voixDispo = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const [voix, setVoix] = useState(() => { try { return localStorage.getItem('hemo.voix') === '1'; } catch { return false; } });
@@ -395,6 +411,13 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
             <span className="pointer-coarse:inline hidden">Glissez pour faire tourner · pincez pour zoomer</span>
             <span className="pointer-coarse:hidden">Cliquez-glissez pour faire tourner · molette pour zoomer</span>
           </div>
+        </div>
+      )}
+
+      {vue === '3d' && pret && !astuce3D && !outils && (
+        <div className="absolute z-10 top-12 right-2 lg:top-14 pointer-events-none rounded-full bg-ink/80 border border-line px-2 py-0.5 text-[10.5px] lg:text-[11px] font-semibold text-muted inline-flex items-center gap-1" role="note" aria-label="Cœur en 3D : faire glisser pour tourner, pincer pour zoomer">
+          <RotateCw size={11} className="text-accent" /> 3D
+          <span>· glisser pour tourner</span>
         </div>
       )}
 
