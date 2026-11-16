@@ -1,7 +1,7 @@
 /** Scène principale : cœur 3D ou voyage du sang 2D, animés par une horloge commune. */
 import { useEffect, useRef, useState } from 'react';
 import { apresDelaiEtVoix, choisirVoix, textePrononcable } from '../core/voix.ts';
-import { Activity, Camera, Circle, Layers, Pause, Speech, Play, RotateCcw, RotateCw, Scissors, SkipBack, SkipForward, Snail, Square, Tag, Volume2, VolumeX, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Activity, Camera, Layers, Pause, Speech, Play, RotateCcw, RotateCw, Scissors, SkipBack, SkipForward, Snail, Square, Tag, Volume2, VolumeX, Video, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Horloge, NOMS_PHASES, type Phase } from '../core/clock.ts';
 import type { Son } from '../core/audio.ts';
 import type { Etat, Niveau } from '../core/types.ts';
@@ -96,6 +96,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
   const legendeRef = useRef(legende);
   legendeRef.current = legende;
   const [enreg, setEnreg] = useState<{ debut: number; son: boolean } | null>(null);
+  const [capture, setCapture] = useState(false); // menu « Capturer » : photo ou vidéo
   // Fichier prêt : sur téléphone (et dans les navigateurs intégrés), le téléchargement direct échoue souvent ;
   // on propose alors « Partager » (WhatsApp, Photos…) et « Enregistrer », deux gestes de l'utilisateur.
   const [fichier, setFichier] = useState<{ blob: Blob; nom: string; video: boolean } | null>(null);
@@ -478,15 +479,33 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
           </div>
         )}
         {vue === '3d' && !tourActif && (
-          <button onClick={() => setOutils((v) => !v)} className={`btn-outil shrink-0 ${outils ? 'actif' : ''}`} aria-label="Ouvrir le cœur et régler la transparence"><Scissors size={14} /> Ouvrir</button>
+          <button onClick={() => { setOutils((v) => !v); setCapture(false); }} className={`btn-outil shrink-0 ${outils ? 'actif' : ''}`} aria-label="Ouvrir le cœur et régler la transparence"><Scissors size={14} /> Ouvrir</button>
         )}
         {peutRetour && <button onClick={onRetour} className="btn-outil shrink-0" aria-label="Revenir à la zone précédente">← Retour</button>}
         {avecTraces && <button onClick={() => setTraces((m) => (m === 'aucun' ? 'ecg' : m === 'ecg' && niveau >= 2 ? 'tout' : 'aucun'))} className={`btn-outil shrink-0 ${traces !== 'aucun' ? 'actif' : ''}`} aria-label="Afficher l'ECG et les pressions"><Activity size={14} /> {traces === 'tout' ? 'ECG + pressions' : 'ECG'}</button>}
         <button onClick={() => setEtiquettes((v) => !v)} className={`btn-outil shrink-0 ${etiquettes ? 'actif' : ''}`} aria-label="Afficher les noms des structures" title="Noms"><Tag size={14} /><span className="hidden sm:inline">Noms</span></button>
-        <button onClick={photo} className="btn-outil shrink-0" aria-label="Exporter une photo" title="Photo"><Camera size={14} /><span className="hidden sm:inline">Photo</span></button>
-        <button onClick={video} className={`btn-outil shrink-0 ${enreg ? 'actif' : ''}`} aria-label="Enregistrer une vidéo">{enreg ? <Square size={13} /> : <Circle size={14} />}<span className={enreg ? '' : 'hidden sm:inline'}>{enreg ? 'Stop' : 'Vidéo'}</span></button>
+        {enreg ? (
+          <button onClick={video} className="btn-outil shrink-0 !text-white !bg-sang/85 !border-sang" aria-label="Arrêter l'enregistrement vidéo"><span className="w-2 h-2 rounded-full bg-white animate-pulse" /><Square size={12} fill="currentColor" /> Stop</button>
+        ) : (
+          <button onClick={() => { setCapture((v) => !v); setOutils(false); }} className={`btn-outil shrink-0 ${capture ? 'actif' : ''}`} aria-label="Capturer : photo ou vidéo" aria-expanded={capture} title="Capturer (photo ou vidéo)"><Camera size={14} /><span className="hidden sm:inline">Capturer</span></button>
+        )}
         <button onClick={() => { onZone(null); setCoupe('aucune'); const r = rendu.current as Coeur3D | null; if (r && 'vueInitiale' in r) r.vueInitiale(); else rendu.current?.focus(null); }} className="btn-outil shrink-0" aria-label="Revenir à la vue d'ensemble" title="Tout voir"><RotateCcw size={14} /><span className="hidden sm:inline">Tout voir</span></button>
       </div>
+      {capture && !enreg && (
+        <>
+          <div className="absolute inset-0 z-20" onClick={() => setCapture(false)} aria-hidden="true" />
+          <div className="absolute z-30 top-12 right-2 lg:top-14 w-56 rounded-xl bg-ink/95 border border-line p-1.5 shadow-xl fade-in" role="menu" aria-label="Capturer">
+            <button role="menuitem" onClick={() => { setCapture(false); photo(); }} className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-card2 active:bg-card2">
+              <span className="w-8 h-8 rounded-lg bg-accent/15 text-accent grid place-items-center shrink-0"><Camera size={16} /></span>
+              <span><span className="block text-[13px] font-semibold">Photo</span><span className="block text-[11px] text-dim">Image de la scène, en haute définition</span></span>
+            </button>
+            <button role="menuitem" onClick={() => { setCapture(false); video(); }} className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-card2 active:bg-card2">
+              <span className="w-8 h-8 rounded-lg bg-sang/15 text-sang grid place-items-center shrink-0"><Video size={16} /></span>
+              <span><span className="block text-[13px] font-semibold">Vidéo</span><span className="block text-[11px] text-dim">Enregistrer l'animation (et le son s'il est activé)</span></span>
+            </button>
+          </div>
+        </>
+      )}
       {vue === '3d' && pret && outils && !tourActif && (
         <div className="absolute z-20 top-12 right-2 w-52 rounded-xl bg-ink/90 border border-line p-2.5 space-y-2 text-xs fade-in">
           <label className="flex items-center justify-between gap-2 text-muted cursor-pointer">
