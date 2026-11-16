@@ -11,13 +11,13 @@ const statutPA = (pas: number, pad: number) =>
 function Mesure({ nom, valeur, unite, note, couleur, delta }: { nom: string; valeur: string; unite?: string; note?: string; couleur?: string; delta?: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[10.5px] uppercase tracking-wider text-dim font-semibold truncate">{nom}</div>
-      <div className="flex flex-wrap items-baseline gap-x-1">
-        <span className={`num text-[19px] font-semibold ${couleur ?? ''}`}>{valeur}</span>
-        {unite && <span className="text-[11px] text-dim">{unite}</span>}
-        {delta && <span className="num text-[11px] text-ok ml-0.5">{delta}</span>}
+      <div className="text-[9.5px] sm:text-[10.5px] uppercase tracking-wider text-dim font-semibold truncate leading-tight">{nom}</div>
+      <div className="flex flex-nowrap sm:flex-wrap items-baseline gap-x-1 leading-tight">
+        <span className={`num text-[15px] sm:text-[19px] font-semibold ${couleur ?? ''}`}>{valeur}</span>
+        {unite && <span className="text-[10px] sm:text-[11px] text-dim">{unite}</span>}
+        {delta && <span className="num text-[10px] sm:text-[11px] text-ok ml-0.5">{delta}</span>}
       </div>
-      {note && <div className={`text-[11px] font-semibold ${couleur ?? 'text-muted'}`}>{note}</div>}
+      {note && <div className={`hidden sm:block text-[11px] font-semibold ${couleur ?? 'text-muted'}`}>{note}</div>}
     </div>
   );
 }
@@ -26,7 +26,7 @@ export function Moniteur({ e, niveau, ref0, compact }: { e: Etat; niveau: Niveau
   const pa = statutPA(e.pas, e.pad);
   const d = (a: number, b: number | undefined, f = (x: number) => String(Math.round(x))) => (b !== undefined && Math.round(a) !== Math.round(b) ? `${a - b > 0 ? '+' : ''}${f(a - b)}` : undefined);
   return (
-    <div className={`carte p-2.5 sm:p-3 gap-x-4 gap-y-2 flex overflow-x-auto scroll-thin [&>*]:shrink-0 [&>*]:min-w-[86px] sm:grid ${compact ? 'sm:grid-cols-3' : 'sm:grid-cols-6'}`} data-testid="moniteur">
+    <div className={`carte px-2.5 py-1.5 sm:p-3 gap-x-3.5 sm:gap-x-4 gap-y-2 flex overflow-x-auto scroll-thin [&>*]:shrink-0 sm:[&>*]:min-w-[86px] sm:grid ${compact ? 'sm:grid-cols-3' : 'sm:grid-cols-6'}`} data-testid="moniteur">
       <Mesure nom="Tension" valeur={`${e.pas}/${e.pad}`} unite="mmHg" note={pa.t} couleur={pa.c} delta={d(e.pas, ref0?.pas)} />
       <Mesure nom="Pouls" valeur={String(e.fc)} unite="/min" note={e.terrain.rythme === 'fa' ? 'Irrégulier' : e.terrain.rythme === 'bav3' ? 'Très lent' : undefined} couleur={e.fc < 50 || e.fc > 100 ? 'text-warn' : undefined} delta={d(e.fc, ref0?.fc)} />
       {niveau >= 2 ? (
