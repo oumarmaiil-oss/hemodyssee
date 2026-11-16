@@ -4,7 +4,7 @@
  * dans les capillaires ; les lésions et la perfusion des organes sont visibles.
  * Un clic sur une zone zoome dessus.
  */
-import { installerZoom2D } from './zoom2d.ts';
+import { installerZoom2D, MARGES_NULLES, zoneLibre, type Marges } from './zoom2d.ts';
 import type { Instant } from '../core/clock.ts';
 import type { Etat } from '../core/types.ts';
 import { effetsVisibles } from '../core/effets.ts';
@@ -86,12 +86,17 @@ export interface Circuit2D {
   setDefinition(pr: number | null): void;
   /** Zoom (boutons + / −) : facteur multiplicatif. */
   zoomer(f: number): void;
+  /** Zones de la scène couvertes par les boutons : le dessin est cadré dans le reste. */
+  setMarges(m: Marges): void;
   dispose(): void;
 }
 
 export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId | null) => void; onHover?: (z: ZoneId | null) => void; leger?: boolean; coeur?: boolean } = {}): Circuit2D {
-  // Mode « cœur en 2D » : même schéma, cadré sur le cœur.
-  const VUE0 = opt.coeur ? { s: 2.15, cx: 505, cy: 440 } : { s: 1, cx: W / 2, cy: H / 2 };
+  // Cadre de départ : tout le schéma, ou seulement le cœur et ses gros vaisseaux (mode « cœur en 2D »).
+  // Il tient entièrement dans la zone libre de la scène, quel que soit l'écran.
+  const CADRE = opt.coeur ? { x: 300, y: 215, w: 430, h: 395 } : { x: 0, y: 0, w: W, h: H };
+  const VUE0 = { s: 1, cx: CADRE.x + CADRE.w / 2, cy: CADRE.y + CADRE.h / 2 };
+  let marges: Marges = MARGES_NULLES;
   const cv = document.createElement('canvas');
   cv.style.cssText = 'display:block;width:100%;height:100%;touch-action:manipulation';
   conteneur.appendChild(cv);
@@ -126,11 +131,12 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
   const vue = { ...VUE0 };
   let anim: { t: number; de: typeof vue; a: typeof vue } | null = null;
   let temps = 0;
-  const zoom = installerZoom2D(cv, { vue, vue0: VUE0, sMax: opt.coeur ? 6 : 5, W, H, taille: () => [cw, ch], k0: () => Math.min(cw / W, ch / H), animer: (a) => { anim = { t: 0, de: { ...vue }, a }; }, arreterAnim: () => { anim = null; } });
+  const libre = () => zoneLibre(cw, ch, marges, CADRE);
+  const zoom = installerZoom2D(cv, { vue, vue0: VUE0, sMax: opt.coeur ? 3 : 5, sMin: opt.coeur ? 0.4 : 0.85, W, H, centre: () => { const l = libre(); return [l.mx, l.my]; }, k0: () => libre().k0, animer: (a) => { anim = { t: 0, de: { ...vue }, a }; }, arreterAnim: () => { anim = null; } });
 
   function base() {
-    const k = Math.min(cw / W, ch / H) * vue.s;
-    return { k, ox: cw / 2 - vue.cx * k, oy: ch / 2 - vue.cy * k };
+    const l = libre(), k = l.k0 * vue.s;
+    return { k, ox: l.mx - vue.cx * k, oy: l.my - vue.cy * k };
   }
   function versMonde(px: number, py: number): Pt { const b = base(); return [(px - b.ox) / b.k, (py - b.oy) / b.k]; }
   function zoneEn(x: number, y: number): ZoneId | null {
@@ -462,13 +468,14 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
     maj(e) { etat = e; },
     focus(z) {
       const r = z ? REGIONS.find((x) => x.z === z) : null;
-      const a = r ? { s: clamp(Math.min(W / (r.w + 280), H / (r.h + 260)), opt.coeur ? 2.15 : 1, opt.coeur ? 3.4 : 2.4), cx: r.x + r.w / 2, cy: r.y + r.h / 2 } : { ...VUE0 };
+      const a = r ? { s: clamp(Math.min(CADRE.w / (r.w + 280), CADRE.h / (r.h + 260)), 1, opt.coeur ? 1.6 : 2.4), cx: r.x + r.w / 2, cy: r.y + r.h / 2 } : { ...VUE0 };
       anim = { t: 0, de: { ...vue }, a };
     },
     selection(z) { choisi = z; },
     setEtiquettes(on, n) { labels = on; noms = n; },
     setDefinition(pr) { defImposee = pr; redim(); },
     zoomer: (f) => zoom.zoomer(f),
+    setMarges(m) { marges = m; },
     dispose() { zoom.dispose(); ro.disconnect(); cv.removeEventListener('pointermove', onMove); cv.removeEventListener('pointerup', onClick); cv.remove(); },
   };
 }

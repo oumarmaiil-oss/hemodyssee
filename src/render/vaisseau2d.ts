@@ -3,7 +3,7 @@
  * globules rouges qui circulent, LDL qui pénètre la paroi, plaque d'athérome,
  * rétrécissement, durcissement (rigidité), caillot.
  */
-import { installerZoom2D, type Vue2D } from './zoom2d.ts';
+import { installerZoom2D, MARGES_NULLES, zoneLibre, type Marges, type Vue2D } from './zoom2d.ts';
 import type { Instant } from '../core/clock.ts';
 import type { Etat } from '../core/types.ts';
 import { effetsVisibles } from '../core/effets.ts';
@@ -42,6 +42,7 @@ export interface Vaisseau2D {
   setDefinition(pr: number | null): void;
   /** Zoom (boutons + / −) : facteur multiplicatif. */
   zoomer(f: number): void;
+  setMarges(m: Marges): void;
   dispose(): void;
 }
 
@@ -106,7 +107,9 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
   const VUE0: Vue2D = { s: 1, cx: W / 2, cy: H / 2 };
   const vue: Vue2D = { ...VUE0 };
   let anim: { t: number; de: Vue2D; a: Vue2D } | null = null;
-  const zoom = installerZoom2D(cv, { vue, vue0: VUE0, sMax: 4, W, H, taille: () => [cw, ch], k0: () => Math.min(cw / W, ch / H), animer: (a) => { anim = { t: 0, de: { ...vue }, a }; }, arreterAnim: () => { anim = null; } });
+  let marges: Marges = MARGES_NULLES;
+  const libre = () => zoneLibre(cw, ch, marges, { w: W, h: H });
+  const zoom = installerZoom2D(cv, { vue, vue0: VUE0, sMax: 4, W, H, centre: () => { const l = libre(); return [l.mx, l.my]; }, k0: () => libre().k0, animer: (a) => { anim = { t: 0, de: { ...vue }, a }; }, arreterAnim: () => { anim = null; } });
 
   let fz = 1; // grossissement des textes sur petit écran
   function texte(t: string, x: number, y: number, taille0 = 13, coul = '#e9eef8', align: CanvasTextAlign = 'center') {
@@ -125,8 +128,8 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
       vue.s = lerp(anim.de.s, anim.a.s, a); vue.cx = lerp(anim.de.cx, anim.a.cx, a); vue.cy = lerp(anim.de.cy, anim.a.cy, a);
       if (anim.t >= 1) anim = null;
     }
-    const k0 = Math.min(cw / W, ch / H), k = k0 * vue.s;
-    const ox = cw / 2 - vue.cx * k, oy = ch / 2 - vue.cy * k;
+    const l = libre(), k0 = l.k0, k = k0 * vue.s;
+    const ox = l.mx - vue.cx * k, oy = l.my - vue.cy * k;
     fz = clamp(0.6 / k0, 1, 1.8);
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, cw, ch);
     g.setTransform(dpr * k, 0, 0, dpr * k, dpr * ox, dpr * oy);
@@ -297,6 +300,7 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
     setEtape(n) { if (n !== etape) { etape = n; tEtape = 0; } },
     setDefinition(pr) { defImposee = pr; redim(); },
     zoomer: (f) => zoom.zoomer(f),
+    setMarges(m) { marges = m; },
     dispose() { zoom.dispose(); ro.disconnect(); cv.remove(); },
   };
 }

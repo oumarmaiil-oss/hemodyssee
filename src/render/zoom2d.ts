@@ -3,6 +3,15 @@
  * et boutons +/− (animés). Un glisser ou un pincement n'est pas pris pour un clic sur une zone.
  */
 export interface Vue2D { s: number; cx: number; cy: number }
+/** Marges (pixels) occupées par les boutons posés sur la scène : le dessin est cadré dans le reste. */
+export interface Marges { haut: number; bas: number; gauche: number; droite: number }
+export const MARGES_NULLES: Marges = { haut: 0, bas: 0, gauche: 0, droite: 0 };
+
+/** Zone libre de la scène et facteur d'échelle pour y faire tenir un cadre (x, y, w, h). */
+export function zoneLibre(cw: number, ch: number, m: Marges, cadre: { w: number; h: number }) {
+  const lw = Math.max(40, cw - m.gauche - m.droite), lh = Math.max(40, ch - m.haut - m.bas);
+  return { k0: Math.min(lw / cadre.w, lh / cadre.h), mx: m.gauche + lw / 2, my: m.haut + lh / 2 };
+}
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 
@@ -11,15 +20,18 @@ export function installerZoom2D(cv: HTMLCanvasElement, o: {
   /** Cadrage de départ (sert de zoom minimal et de retour « Tout voir »). */
   vue0: Vue2D;
   sMax: number;
+  /** Zoom minimal (par défaut : un peu moins que le cadrage de départ). */
+  sMin?: number;
   W: number; H: number;
-  taille: () => [number, number];
+  /** Centre (en pixels) de la zone libre de la scène, hors barres de boutons. */
+  centre: () => [number, number];
   /** Facteur d'échelle de base (pixels par unité du dessin, sans zoom). */
   k0: () => number;
   animer: (a: Vue2D) => void;
   arreterAnim: () => void;
 }) {
   const { vue } = o;
-  const sMin = o.vue0.s * 0.9;
+  const sMin = o.sMin ?? o.vue0.s * 0.85;
   const pts = new Map<number, { x: number; y: number }>();
   let deplace = false, distance0 = 0, s0 = 1, parcours = 0;
 
@@ -29,12 +41,12 @@ export function installerZoom2D(cv: HTMLCanvasElement, o: {
   };
   /** Zoom de facteur f en gardant fixe le point (px, py) de l'écran. */
   const zoomAutour = (px: number, py: number, s1: number) => {
-    const [cw, ch] = o.taille();
+    const [mx, my] = o.centre();
     const k = o.k0() * vue.s;
-    const wx = vue.cx + (px - cw / 2) / k, wy = vue.cy + (py - ch / 2) / k;
+    const wx = vue.cx + (px - mx) / k, wy = vue.cy + (py - my) / k;
     vue.s = clamp(s1, sMin, o.sMax);
     const k1 = o.k0() * vue.s;
-    vue.cx = wx - (px - cw / 2) / k1; vue.cy = wy - (py - ch / 2) / k1;
+    vue.cx = wx - (px - mx) / k1; vue.cy = wy - (py - my) / k1;
     borner();
   };
   const local = (ev: PointerEvent | WheelEvent) => { const r = cv.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; };

@@ -3,7 +3,7 @@
  * artères rénales, artères des jambes) et le retour veineux. Les lésions apparaissent
  * à leur place : plaque carotidienne, artères des jambes, AVC, reins, poumons.
  */
-import { installerZoom2D } from './zoom2d.ts';
+import { installerZoom2D, MARGES_NULLES, zoneLibre, type Marges } from './zoom2d.ts';
 import type { Instant } from '../core/clock.ts';
 import type { Etat } from '../core/types.ts';
 import { effetsVisibles } from '../core/effets.ts';
@@ -69,6 +69,7 @@ export interface Corps2D {
   setDefinition(pr: number | null): void;
   /** Zoom (boutons + / −) : facteur multiplicatif. */
   zoomer(f: number): void;
+  setMarges(m: Marges): void;
   dispose(): void;
 }
 
@@ -102,9 +103,11 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
   const vue = { s: 1, cx: W / 2, cy: H / 2 };
   let anim: { t: number; de: typeof vue; a: typeof vue } | null = null;
   let temps = 0;
-  const zoom = installerZoom2D(cv, { vue, vue0: { s: 1, cx: W / 2, cy: H / 2 }, sMax: 5, W, H, taille: () => [cw, ch], k0: () => Math.min(cw / W, ch / H), animer: (a) => { anim = { t: 0, de: { ...vue }, a }; }, arreterAnim: () => { anim = null; } });
+  let marges: Marges = MARGES_NULLES;
+  const libre = () => zoneLibre(cw, ch, marges, { w: W, h: H });
+  const zoom = installerZoom2D(cv, { vue, vue0: { s: 1, cx: W / 2, cy: H / 2 }, sMax: 5, W, H, centre: () => { const l = libre(); return [l.mx, l.my]; }, k0: () => libre().k0, animer: (a) => { anim = { t: 0, de: { ...vue }, a }; }, arreterAnim: () => { anim = null; } });
 
-  const base = () => { const k = Math.min(cw / W, ch / H) * vue.s; return { k, ox: cw / 2 - vue.cx * k, oy: ch / 2 - vue.cy * k }; };
+  const base = () => { const l = libre(), k = l.k0 * vue.s; return { k, ox: l.mx - vue.cx * k, oy: l.my - vue.cy * k }; };
   const monde = (ev: PointerEvent): Pt => { const r = cv.getBoundingClientRect(); const b = base(); return [(ev.clientX - r.left - b.ox) / b.k, (ev.clientY - r.top - b.oy) / b.k]; };
   const zoneEn = ([x, y]: Pt) => REGIONS.find((r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h)?.z ?? null;
   const onMove = (ev: PointerEvent) => { if (ev.pointerType !== 'mouse') return; const z = zoneEn(monde(ev)); if (z !== survol) { survol = z; cv.style.cursor = z ? 'pointer' : 'default'; opt.onHover?.(z); } };
@@ -303,6 +306,7 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
     embolie(on) { demo = on; if (on) { embole = null; prochain = 0.4; } },
     setDefinition(pr) { defImposee = pr; redim(); },
     zoomer: (f) => zoom.zoomer(f),
+    setMarges(m) { marges = m; },
     dispose() { zoom.dispose(); ro.disconnect(); cv.removeEventListener('pointermove', onMove); cv.removeEventListener('pointerup', onUp); cv.remove(); },
   };
 }
