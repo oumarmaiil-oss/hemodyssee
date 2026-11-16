@@ -1,7 +1,7 @@
 /** Application Hémodyssée : état global, mise en page, en-tête et accueil. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Info, Map, MessageCircle, Play, RefreshCw, Snail, TrendingUp, Volume2, VolumeX, X } from 'lucide-react';
-import { Signalement, WHATSAPP } from './Signalement.tsx';
+import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Map, Play, RefreshCw, Share2, Snail, TrendingUp, Volume2, VolumeX, X } from 'lucide-react';
+import { IconeContact, partagerApp, Signalement, WHATSAPP, WHATSAPP_AFFICHE } from './Signalement.tsx';
 import { calculer, fractionAu, evoluer, TERRAIN_NORMAL } from '../core/engine.ts';
 import { Son } from '../core/audio.ts';
 import type { ClasseId, Niveau, Traitement } from '../core/types.ts';
@@ -53,7 +53,6 @@ export default function App() {
   const [sonOn, setSonOn] = useState(false);
   const [ralenti, setRalenti] = useState(false);
   const [labo, setLabo] = useState(() => /[?&]labo/.test(location.search) || lire('hemo.labo') === '1');
-  const [apropos, setApropos] = useState(false);
   const son = useRef(new Son()).current;
   const [signaler, setSignaler] = useState(false);
   const [maj, setMaj] = useState(false);
@@ -209,8 +208,8 @@ export default function App() {
           <button onClick={() => setRalenti((v) => !v)} className={`btn-icone hidden sm:grid ${ralenti ? 'actif' : ''}`} title="Ralenti" aria-label="Ralenti"><Snail size={16} /></button>
           <button onClick={() => setLabo((v) => !v)} className={`btn-icone ${labo ? 'actif' : ''}`} title="Mode labo (gamme commerciale)" aria-label="Mode labo"><Briefcase size={16} /></button>
           {installer && <button onClick={() => { void installer.prompt(); setInstaller(null); }} className="btn-icone actif" title="Installer l'application" aria-label="Installer l'application"><Download size={16} /></button>}
-          <button onClick={() => setSignaler(true)} className="btn-icone" title="Signaler un problème ou suggérer" aria-label="Signaler"><MessageCircle size={16} /></button>
-          <button onClick={() => setApropos(true)} className="btn-icone" title="À propos" aria-label="À propos"><Info size={16} /></button>
+          <button onClick={() => void partagerApp()} className="btn-icone" title="Partager l'application" aria-label="Partager l'application"><Share2 size={16} /></button>
+          <button onClick={() => setSignaler(true)} className="btn-icone !text-[#25d366] !border-[#25d366]/40 !bg-[#25d366]/10" title="Contacter l'auteur, signaler un problème ou suggérer" aria-label="Contacter ou signaler"><IconeContact size={17} /></button>
         </div>
         <div className="lg:hidden px-2 pb-1.5 grid sm:grid-cols-2 gap-1.5">
           <div className="seg w-full justify-between">{NIVEAUX.map((x) => <button key={x.n} className={`flex-1 ${niveau === x.n ? 'actif' : ''}`} onClick={() => choisirNiveau(x.n)}>{x.nom}</button>)}</div>
@@ -302,10 +301,32 @@ export default function App() {
         </aside>
       </main>
 
-      <footer className="hidden lg:block text-center text-[11px] text-dim pb-4 px-4">Hémodyssée · Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</footer>
+      <footer className="text-center text-[11px] text-dim pb-4 pt-1 px-4 space-y-1">
+        <p>Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments. Tous droits réservés.</p>
+        <p className="flex flex-wrap items-center justify-center gap-x-1.5">
+          © 2026 Hémodyssée · Dr Oumar Sow · Dakar
+          <svg viewBox="0 0 30 20" width="18" height="12" aria-label="Drapeau du Sénégal" role="img" className="inline rounded-[2px]">
+            <rect width="10" height="20" fill="#00853F" /><rect x="10" width="10" height="20" fill="#FDEF42" /><rect x="20" width="10" height="20" fill="#E31B23" />
+            <polygon fill="#00853F" points="15,6.2 15.95,9.1 19,9.1 16.53,10.9 17.47,13.8 15,12 12.53,13.8 13.47,10.9 11,9.1 14.05,9.1" />
+          </svg>
+          · <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">WhatsApp {WHATSAPP_AFFICHE}</a>
+          · v{__VERSION__}
+          · <button onClick={() => void partagerApp()} className="underline decoration-dotted hover:text-txt">Partager l'application</button>
+        </p>
+        <details className="max-w-xl mx-auto text-left">
+          <summary className="cursor-pointer text-center py-1 hover:text-txt">Sources des chiffres</summary>
+          <ul className="space-y-1 mt-1 leading-snug">
+            <li>• Effet d'une classe d'antihypertenseur à dose standard (environ −9 mmHg) et additivité des associations : Law MR et al., BMJ 2009;338:b1665.</li>
+            <li>• Risque relatif par 10 mmHg de PAS en moins (AVC 0,73 ; coronaires 0,83 ; IC 0,72) : Ettehad D et al., Lancet 2016;387:957-67.</li>
+            <li>• −22 % d'événements vasculaires par mmol/L de LDL en moins : Cholesterol Treatment Trialists' Collaboration, Lancet 2010;376:1670-81.</li>
+            <li>• FA : risque d'AVC multiplié par environ 5 (Wolf PA et al., Stroke 1991) ; anticoagulation : environ −64 % (Hart RG et al., Ann Intern Med 2007).</li>
+            <li>• Recommandations ESC/ESH (HTA 2023-2024), ESC (dyslipidémies 2019, IC 2021-2023, FA 2024, valvulopathies 2021).</li>
+            <li>• Modèle simplifié : bons sens de variation et bons ordres de grandeur, pas l'évolution d'un patient réel.</li>
+          </ul>
+        </details>
+      </footer>
 
       {accueil && <Accueil onChoix={choisirNiveau} onDemo={() => { choisirNiveau(1); setOnglet('maladies'); lancerPresentation('hta'); }} />}
-      {apropos && <APropos onClose={() => setApropos(false)} labo={labo} />}
       {signaler && <Signalement onClose={() => setSignaler(false)} contexte={[
         `Version : ${__VERSION__}`, `Vue : ${vue} · niveau ${niveau}${zone ? ` · zone ${zone}` : ''}`,
         `Maladies : ${actives.map((a) => `${PATHO_PAR_ID[a.id].court} (${a.s})`).join(', ') || 'aucune'}`,
@@ -347,55 +368,6 @@ function Accueil({ onChoix, onDemo }: { onChoix: (n: Niveau) => void; onDemo: ()
           ))}
         </div>
         <p className="text-[11.5px] text-dim text-center mt-5">Vous pourrez changer de niveau à tout moment, en haut de l'écran.</p>
-      </div>
-    </div>
-  );
-}
-
-function APropos({ onClose, labo }: { onClose: () => void; labo: boolean }) {
-  return (
-    <div className="fixed inset-0 z-50 bg-ink/80 backdrop-blur-sm grid place-items-center p-4" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="max-w-xl w-full max-h-[85vh] overflow-y-auto scroll-thin rounded-3xl border border-line bg-panel p-6 space-y-4 text-[13.5px]" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-start"><h2 className="font-display text-2xl">À propos d'Hémodyssée</h2><button className="btn-icone" onClick={onClose} aria-label="Fermer"><X size={15} /></button></div>
-        <p>Hémodyssée est un outil visuel pour comprendre et faire comprendre la circulation, les maladies cardiovasculaires (HTA, dyslipidémie, valvulopathies, troubles du rythme, insuffisance cardiaque…) et l'action de chaque classe de médicaments.</p>
-        <div><div className="titre-section mb-1">Comment l'utiliser</div>
-          <ol className="list-decimal pl-5 space-y-1 text-muted">
-            <li><b className="text-txt">Pour commencer</b> : lancez une présentation guidée (onglet Maladies et traitements) ; tout s'enchaîne seul.</li>
-            <li><b className="text-txt">Explorer</b> : suivez le voyage du sang et touchez une zone pour zoomer. Quatre vues : Cœur (2D ou 3D), Voyage, Corps, Vaisseau.</li>
-            <li><b className="text-txt">Maladies et traitements</b> : simulez une maladie, regardez-la dans les trois vues, puis appliquez le traitement proposé ou une classe à la fois.</li>
-            <li><b className="text-txt">Évolution</b> : sans traitement, traitement suivi, traitement arrêté, sur 5 ans.</li>
-            <li><b className="text-txt">S'entraîner</b> : 9 cas cliniques corrigés ; fiche récapitulative en PDF.</li>
-          </ol>
-        </div>
-        <div><div className="titre-section mb-1">Sur quoi reposent les chiffres</div>
-          <ul className="space-y-1 text-muted">
-            <li>• Effet d'une classe d'antihypertenseur à dose standard (environ −9 mmHg) et additivité des associations : Law MR et al., BMJ 2009;338:b1665.</li>
-            <li>• Risque relatif par 10 mmHg de PAS en moins (AVC 0,73 ; coronaires 0,83 ; IC 0,72) : Ettehad D et al., Lancet 2016;387:957-67.</li>
-            <li>• −22 % d'événements vasculaires par mmol/L de LDL en moins : Cholesterol Treatment Trialists' Collaboration, Lancet 2010;376:1670-81.</li>
-            <li>• FA : risque d'AVC multiplié par environ 5 (Wolf PA et al., Stroke 1991) ; anticoagulation : environ −64 % (Hart RG et al., Ann Intern Med 2007).</li>
-            <li>• Recommandations ESC/ESH (HTA 2023-2024), ESC (dyslipidémies 2019, IC 2021-2023, FA 2024, valvulopathies 2021).</li>
-          </ul>
-        </div>
-        <div><div className="titre-section mb-1">Limites</div><p className="text-muted">C'est un modèle simplifié : il montre les bons sens de variation et les bons ordres de grandeur, pas l'évolution d'un patient réel. Il ne remplace ni l'avis médical ni le RCP des médicaments.</p></div>
-        {labo && <div className="rounded-xl border border-accent/30 bg-accent/5 p-3 text-muted">Le mode labo affiche une gamme commerciale. Il est désactivé par défaut : la version publique reste en DCI.</div>}
-        <div><div className="titre-section mb-1">Installer sur téléphone ou ordinateur</div>
-          <ul className="space-y-1 text-muted">
-            <li>• <b className="text-txt">Android / Chrome</b> : bouton « Installer » en haut, ou menu ⋮ → « Installer l'application ».</li>
-            <li>• <b className="text-txt">iPhone / iPad</b> : dans Safari, bouton Partager → « Sur l'écran d'accueil ».</li>
-            <li>• Elle fonctionne hors connexion et reste liée au site : chaque nouvelle version s'installe toute seule (un message propose de recharger).</li>
-            <li>• Pour la supprimer : appui long sur l'icône → Supprimer, comme n'importe quelle application.</li>
-          </ul>
-        </div>
-        <div><div className="titre-section mb-1">Exporter</div><p className="text-muted">Boutons Photo et Vidéo sur la scène : image PNG, ou vidéo (MP4 ou WebM selon le navigateur) avec les bruits du cœur si le son est activé. Sur téléphone, un bouton « Partager » envoie directement vers WhatsApp ou la galerie.</p></div>
-        <p className="text-dim text-[11.5px]">Tous droits réservés : le contenu et le code ne peuvent être reproduits ou redistribués sans autorisation écrite de l'auteur.</p>
-        <p className="text-dim text-xs flex flex-wrap items-center gap-x-1.5">
-          © 2026 Hémodyssée · Conçu par le Dr O. Sow · Dakar, Sénégal
-          <svg viewBox="0 0 30 20" width="18" height="12" aria-label="Drapeau du Sénégal" role="img" className="inline rounded-[2px]">
-            <rect width="10" height="20" fill="#00853F" /><rect x="10" width="10" height="20" fill="#FDEF42" /><rect x="20" width="10" height="20" fill="#E31B23" />
-            <polygon fill="#00853F" points="15,6.2 15.95,9.1 19,9.1 16.53,10.9 17.47,13.8 15,12 12.53,13.8 13.47,10.9 11,9.1 14.05,9.1" />
-          </svg>
-          · WhatsApp @{WHATSAPP} · version {__VERSION__}
-        </p>
       </div>
     </div>
   );

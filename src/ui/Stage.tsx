@@ -133,10 +133,25 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
   // Boucle d'animation unique.
   useEffect(() => {
     let raf = 0, last = performance.now(), dernierePhase: Phase | null = null;
+    // Qualité adaptative : si l'appareil peine (moins de ~24 images/s mesurées sur 2 s),
+    // on ne redessine la scène qu'une image sur deux ; on revient à la normale s'il se rétablit.
+    let saut = 1, compteur = 0, cumulDt = 0, fenetre = 0, images = 0, retours = 0;
     const boucle = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      const dtBrut = (now - last) / 1000; last = now;
+      const dt = Math.min(0.05, dtBrut);
+      if (visible.current && !captureRef.current && !document.hidden) {
+        fenetre += dtBrut; images++;
+        if (fenetre >= 2) {
+          const fps = images / fenetre;
+          if (saut === 1 && fps < 24) saut = 2;
+          else if (saut === 2 && fps > 55 && retours < 2) { saut = 1; retours++; } // pas d'oscillation sans fin
+          fenetre = 0; images = 0;
+        }
+      }
       const i = horloge.current.avancer(dt);
-      if (visible.current || captureRef.current) rendu.current?.frame(i, dt);
+      cumulDt += dt; compteur++;
+      const dessiner = captureRef.current || compteur % saut === 0;
+      if (dessiner && (visible.current || captureRef.current)) { rendu.current?.frame(i, Math.min(0.1, cumulDt)); cumulDt = 0; }
       if (visible.current) moteurTraces.current?.frame(i, dt, etatRef.current);
       if (captureRef.current) { const c = hote.current?.querySelector('canvas'); if (c) captureRef.current(c); }
       son.tick(i, etatRef.current);
@@ -450,8 +465,8 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
           </div>
         </div>
       ) : (vue === '3d' || vue === '2d') && pret && (
-        <button onClick={onVoyage3D} className="absolute bottom-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-sang hover:brightness-110 text-white text-[12px] font-bold pl-2.5 pr-3.5 py-1.5 inline-flex items-center gap-1.5 shadow-[0_4px_18px_rgba(224,65,78,.45)]">
-          <Play size={13} fill="currentColor" /> Voir le voyage du sang
+        <button onClick={onVoyage3D} aria-label="Voir le voyage du sang" className="absolute bottom-6 right-2 sm:bottom-2.5 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 whitespace-nowrap rounded-full bg-sang/85 sm:bg-sang hover:brightness-110 active:scale-95 transition-transform text-white text-[10.5px] sm:text-[12px] font-semibold sm:font-bold pl-1.5 pr-2 py-0.5 sm:pl-2.5 sm:pr-3.5 sm:py-1.5 inline-flex items-center gap-1 sm:gap-1.5 touch-manipulation before:absolute before:-inset-2.5 before:content-[''] sm:before:hidden shadow-[0_1px_6px_rgba(224,65,78,.3)] sm:shadow-[0_4px_18px_rgba(224,65,78,.45)]">
+          <Play size={9} fill="currentColor" className="sm:hidden" /><Play size={13} fill="currentColor" className="hidden sm:block" /> <span className="sm:hidden">Voyage</span><span className="hidden sm:inline">Voir le voyage du sang</span>
         </button>
       )}
 
