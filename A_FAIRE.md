@@ -23,6 +23,14 @@ Mis à jour le 16 novembre 2026.
 - [ ] **Présentation « HTA non contrôlée »** : relire les textes (`src/content/presentations.ts`,
       id `visite`) avant de la montrer à des médecins.
 
+## Fait le 16 novembre 2026 (suite)
+- Son et ralenti déplacés sur la scène (coin haut gauche) ; bouton « Contact » nommé dans l'en-tête.
+- Barre d'outils de la scène en icônes sur mobile : tient sur un écran de 360 px.
+- Voix off : meilleure voix française de l'appareil (voix « naturelles » en priorité), lecture
+  de l'explication de chaque étape, chiffres et unités prononçables (« 152 sur 100 »,
+  « moins 52 pour cent »…), l'étape suivante attend la fin de la phrase.
+- Mises à jour économes : seuls les fichiers modifiés sont retéléchargés ; polices inutiles retirées.
+
 ## Fait le 16 novembre 2026
 - Contact par numéro WhatsApp (+221 77 414 47 99) ; le lien par nom d'utilisateur ne fonctionnait pas.
 - Bouton « i » et écran À propos supprimés ; signature en bas de page, sources repliables.

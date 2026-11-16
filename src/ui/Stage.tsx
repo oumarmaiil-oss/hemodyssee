@@ -1,6 +1,7 @@
 /** Scène principale : cœur 3D ou voyage du sang 2D, animés par une horloge commune. */
 import { useEffect, useRef, useState } from 'react';
-import { Activity, Camera, Circle, Layers, Pause, Speech, Play, RotateCcw, Scissors, SkipBack, SkipForward, Square, Tag, X } from 'lucide-react';
+import { apresDelaiEtVoix, choisirVoix, textePrononcable } from '../core/voix.ts';
+import { Activity, Camera, Circle, Layers, Pause, Speech, Play, RotateCcw, Scissors, SkipBack, SkipForward, Snail, Square, Tag, Volume2, VolumeX, X } from 'lucide-react';
 import { Horloge, NOMS_PHASES, type Phase } from '../core/clock.ts';
 import type { Son } from '../core/audio.ts';
 import type { Etat, Niveau } from '../core/types.ts';
@@ -46,6 +47,9 @@ interface Props {
   onZone: (z: ZoneId | null) => void;
   son: Son;
   ralenti: boolean;
+  sonOn: boolean;
+  onSon: () => void;
+  onRalenti: () => void;
   legende: string;
   onVue: (v: Vue) => void;
   onVoyage3D: () => void;
@@ -63,9 +67,9 @@ interface Props {
   onRetour: () => void;
 }
 
-export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean }
+export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean; /** La voix off lit aussi l'explication. */ voixDetail?: boolean }
 
-export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue, onVoyage3D, tourActif, lecture: lectureApp, onLecture: onLectureApp, onLectureLocale, sitePatho, demandeEtapes = 0, peutRetour, onRetour }: Props) {
+export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage3D, tourActif, lecture: lectureApp, onLecture: onLectureApp, onLectureLocale, sitePatho, demandeEtapes = 0, peutRetour, onRetour }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const [site, setSite] = useState<Site>('coronaire');
@@ -224,8 +228,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
   };
   useEffect(() => {
     if (!ath || ath.pause || ath.i >= N_ATH - 1) return;
-    const id = setTimeout(() => allerAth(ath.i + 1), 5200);
-    return () => clearTimeout(id);
+    return apresDelaiEtVoix(5200, () => allerAth(ath.i + 1));
   }, [ath, vue]);
   // Un changement de vue fait à la main, ou une autre lecture, arrête la démonstration.
   useEffect(() => { if (ath && vue !== vueAth(ath.i)) setAth(null); }, [vue]);
@@ -247,22 +250,33 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
     ...(ath.i < ETAPES_ATHERO.length
       ? { texte: `${ETAPES_ATHERO[ath.i].titre} : ${ETAPES_ATHERO[ath.i].texte}`, detail: ETAPES_ATHERO[ath.i].detail }
       : { texte: 'Le caillot voyage : un fragment parti d\'une plaque carotidienne bouche une artère du cerveau (AVC ischémique).', detail: 'Sur une plaque coronaire, le caillot provoque l\'infarctus ; dans une artère de jambe, l\'ischémie aiguë du membre.' }),
-    index: ath.i, total: N_ATH, pause: ath.pause,
+    index: ath.i, total: N_ATH, pause: ath.pause, voixDetail: true,
   } : null);
   // Voix off : lit chaque étape à voix haute (voix française de l'appareil, si elle existe).
   const voixDispo = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const [voix, setVoix] = useState(() => { try { return localStorage.getItem('hemo.voix') === '1'; } catch { return false; } });
   useEffect(() => { try { localStorage.setItem('hemo.voix', voix ? '1' : '0'); } catch { /* stockage indisponible */ } }, [voix]);
-  const texteLu = lecture && !lecture.pause ? lecture.texte : null;
+  // Texte lu : la phrase de l'étape, puis son explication (chiffres compris), rendus prononçables.
+  const texteLu = lecture && !lecture.pause ? [lecture.texte, lecture.voixDetail ? lecture.detail : null].filter(Boolean).join('. ') : null;
+  // Meilleure voix française de l'appareil (les voix arrivent parfois après le chargement).
+  const voixChoisie = useRef<SpeechSynthesisVoice | null>(null);
+  useEffect(() => {
+    if (!voixDispo) return;
+    const maj = () => { voixChoisie.current = choisirVoix(speechSynthesis.getVoices()); };
+    maj(); speechSynthesis.addEventListener?.('voiceschanged', maj);
+    return () => speechSynthesis.removeEventListener?.('voiceschanged', maj);
+  }, []);
   useEffect(() => {
     if (!voixDispo) return;
     speechSynthesis.cancel();
     if (!voix || !texteLu) return;
-    const u = new SpeechSynthesisUtterance(texteLu.replace(/®/g, ''));
-    u.lang = 'fr-FR'; u.rate = 1.02;
-    const fr = speechSynthesis.getVoices().find((v) => v.lang?.toLowerCase().startsWith('fr'));
-    if (fr) u.voice = fr;
-    speechSynthesis.speak(u);
+    const u = new SpeechSynthesisUtterance(textePrononcable(texteLu));
+    const v = voixChoisie.current ?? choisirVoix(speechSynthesis.getVoices());
+    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'fr-FR';
+    u.rate = 0.97; u.pitch = 1;
+    // Petit délai : laisse la scène changer avant de parler, et contourne un blocage connu de Chrome après cancel().
+    const t = setTimeout(() => speechSynthesis.speak(u), 120);
+    return () => clearTimeout(t);
   }, [voix, texteLu]);
   useEffect(() => () => { if (voixDispo) speechSynthesis.cancel(); }, []);
 
@@ -363,6 +377,12 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
       {!pret && !erreur3D && <div className="absolute inset-0 grid place-items-center text-muted text-sm">Préparation de la scène…</div>}
       {erreur3D && <div className="absolute inset-0 grid place-items-center text-center p-6 text-muted text-sm">La 3D n'est pas disponible sur cet appareil.<br />Utilisez la vue 2D.</div>}
 
+      {/* Son et ralenti : sur la scène, coin haut gauche, sous la barre d'outils (loin de l'ECG) */}
+      <div className="absolute z-20 left-2 top-12 lg:top-24 flex flex-col gap-1.5">
+        <button onClick={onSon} className={`btn-icone !w-8 !h-8 ${sonOn ? 'actif' : ''}`} title={sonOn ? 'Couper les bruits du cœur' : 'Écouter les bruits du cœur'} aria-label={sonOn ? 'Couper les bruits du cœur' : 'Activer les bruits du cœur'} aria-pressed={sonOn}>{sonOn ? <Volume2 size={15} /> : <VolumeX size={15} />}</button>
+        <button onClick={onRalenti} className={`btn-icone !w-8 !h-8 ${ralenti ? 'actif' : ''}`} title="Ralenti" aria-label="Ralenti" aria-pressed={ralenti}><Snail size={15} /></button>
+      </div>
+
       {/* Phase du cycle */}
       {niveau >= 2 && (
         <div className="absolute bottom-2.5 left-2 lg:bottom-auto lg:top-14 flex items-center gap-1.5 rounded-full bg-ink/75 border border-line px-2 py-0.5 text-[10.5px] lg:text-xs text-muted pointer-events-none max-w-[38%] lg:max-w-[60%] truncate">
@@ -399,7 +419,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
       )}
 
       {/* Barre d'outils : une seule ligne, qui défile horizontalement sur téléphone */}
-      <div className="absolute z-20 top-2 left-2 right-2 flex gap-1.5 overflow-x-auto scroll-thin lg:justify-end lg:overflow-visible [&::-webkit-scrollbar]:hidden">
+      <div className="absolute z-20 top-2 left-2 right-2 flex gap-1 sm:gap-1.5 overflow-x-auto scroll-thin lg:justify-end lg:overflow-visible [&::-webkit-scrollbar]:hidden">
         {(vue === '3d' || vue === 'coeur2d') && (
           <div className="seg shrink-0">
             <button className={vue === 'coeur2d' ? 'actif' : ''} onClick={() => onVue('coeur2d')}>2D</button>
@@ -411,10 +431,10 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
         )}
         {peutRetour && <button onClick={onRetour} className="btn-outil shrink-0" aria-label="Revenir à la zone précédente">← Retour</button>}
         {avecTraces && <button onClick={() => setTraces((m) => (m === 'aucun' ? 'ecg' : m === 'ecg' && niveau >= 2 ? 'tout' : 'aucun'))} className={`btn-outil shrink-0 ${traces !== 'aucun' ? 'actif' : ''}`} aria-label="Afficher l'ECG et les pressions"><Activity size={14} /> {traces === 'tout' ? 'ECG + pressions' : 'ECG'}</button>}
-        <button onClick={() => setEtiquettes((v) => !v)} className={`btn-outil shrink-0 ${etiquettes ? 'actif' : ''}`} aria-label="Afficher les noms des structures"><Tag size={14} /> Noms</button>
-        <button onClick={photo} className="btn-outil shrink-0" aria-label="Exporter une photo"><Camera size={14} /> Photo</button>
-        <button onClick={video} className={`btn-outil shrink-0 ${enreg ? 'actif' : ''}`} aria-label="Enregistrer une vidéo">{enreg ? <Square size={13} /> : <Circle size={14} />} {enreg ? 'Stop' : 'Vidéo'}</button>
-        <button onClick={() => { onZone(null); setCoupe('aucune'); const r = rendu.current as Coeur3D | null; if (r && 'vueInitiale' in r) r.vueInitiale(); else rendu.current?.focus(null); }} className="btn-outil shrink-0" aria-label="Revenir à la vue d'ensemble"><RotateCcw size={14} /> Tout voir</button>
+        <button onClick={() => setEtiquettes((v) => !v)} className={`btn-outil shrink-0 ${etiquettes ? 'actif' : ''}`} aria-label="Afficher les noms des structures" title="Noms"><Tag size={14} /><span className="hidden sm:inline">Noms</span></button>
+        <button onClick={photo} className="btn-outil shrink-0" aria-label="Exporter une photo" title="Photo"><Camera size={14} /><span className="hidden sm:inline">Photo</span></button>
+        <button onClick={video} className={`btn-outil shrink-0 ${enreg ? 'actif' : ''}`} aria-label="Enregistrer une vidéo">{enreg ? <Square size={13} /> : <Circle size={14} />}<span className={enreg ? '' : 'hidden sm:inline'}>{enreg ? 'Stop' : 'Vidéo'}</span></button>
+        <button onClick={() => { onZone(null); setCoupe('aucune'); const r = rendu.current as Coeur3D | null; if (r && 'vueInitiale' in r) r.vueInitiale(); else rendu.current?.focus(null); }} className="btn-outil shrink-0" aria-label="Revenir à la vue d'ensemble" title="Tout voir"><RotateCcw size={14} /><span className="hidden sm:inline">Tout voir</span></button>
       </div>
       {vue === '3d' && pret && outils && !tourActif && (
         <div className="absolute z-20 top-12 right-2 w-52 rounded-xl bg-ink/90 border border-line p-2.5 space-y-2 text-xs fade-in">

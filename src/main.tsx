@@ -3,10 +3,8 @@ import App from './ui/App.tsx';
 import { Secours } from './ui/Secours.tsx';
 // Polices embarquées (pas d'appel à Google Fonts) : elles fonctionnent hors ligne et chargent plus vite.
 import '@fontsource/plus-jakarta-sans/latin-400.css';
-import '@fontsource/plus-jakarta-sans/latin-500.css';
 import '@fontsource/plus-jakarta-sans/latin-600.css';
 import '@fontsource/plus-jakarta-sans/latin-700.css';
-import '@fontsource/plus-jakarta-sans/latin-800.css';
 import '@fontsource/fraunces/latin-600.css';
 import '@fontsource/fraunces/latin-700.css';
 import '@fontsource/ibm-plex-mono/latin-500.css';
