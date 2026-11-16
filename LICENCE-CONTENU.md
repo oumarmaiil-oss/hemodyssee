@@ -46,7 +46,7 @@ librement le contenu pour enseigner, informer ou soigner, en citant la source.
 
 Versions personnalisées (laboratoires, facultés, hôpitaux, ONG), licences commerciales du contenu
 ou intégration dans un autre produit : contacter l'auteur.
-WhatsApp : +221 77 414 47 99.
+WhatsApp : +221 77 414 47 99 · courriel : oumarmaiil@gmail.com.
 
 ## 5. Avertissement médical
 

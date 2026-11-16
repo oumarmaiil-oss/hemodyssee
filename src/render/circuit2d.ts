@@ -92,9 +92,9 @@ export interface Circuit2D {
 }
 
 export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId | null) => void; onHover?: (z: ZoneId | null) => void; leger?: boolean; coeur?: boolean } = {}): Circuit2D {
-  // Cadre de départ : tout le schéma, ou seulement le cœur et ses gros vaisseaux (mode « cœur en 2D »).
-  // Il tient entièrement dans la zone libre de la scène, quel que soit l'écran.
-  const CADRE = opt.coeur ? { x: 300, y: 215, w: 430, h: 395 } : { x: 0, y: 0, w: W, h: H };
+  // Cadre de départ : tout le schéma (cerveau, cœur, poumons, reins, jambes), entièrement visible dans la
+  // zone libre de la scène quel que soit l'écran. On zoome ensuite avec + / −, le pincement ou un clic sur une zone.
+  const CADRE = { x: 0, y: 0, w: W, h: H };
   const VUE0 = { s: 1, cx: CADRE.x + CADRE.w / 2, cy: CADRE.y + CADRE.h / 2 };
   let marges: Marges = MARGES_NULLES;
   const cv = document.createElement('canvas');
@@ -132,7 +132,7 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
   let anim: { t: number; de: typeof vue; a: typeof vue } | null = null;
   let temps = 0;
   const libre = () => zoneLibre(cw, ch, marges, CADRE);
-  const zoom = installerZoom2D(cv, { vue, vue0: VUE0, sMax: opt.coeur ? 3 : 5, sMin: opt.coeur ? 0.4 : 0.85, W, H, centre: () => { const l = libre(); return [l.mx, l.my]; }, k0: () => libre().k0, animer: (a) => { anim = { t: 0, de: { ...vue }, a }; }, arreterAnim: () => { anim = null; } });
+  const zoom = installerZoom2D(cv, { vue, vue0: VUE0, sMax: 5, sMin: 0.85, W, H, centre: () => { const l = libre(); return [l.mx, l.my]; }, k0: () => libre().k0, animer: (a) => { anim = { t: 0, de: { ...vue }, a }; }, arreterAnim: () => { anim = null; } });
 
   function base() {
     const l = libre(), k = l.k0 * vue.s;
@@ -468,7 +468,7 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
     maj(e) { etat = e; },
     focus(z) {
       const r = z ? REGIONS.find((x) => x.z === z) : null;
-      const a = r ? { s: clamp(Math.min(CADRE.w / (r.w + 280), CADRE.h / (r.h + 260)), 1, opt.coeur ? 1.6 : 2.4), cx: r.x + r.w / 2, cy: r.y + r.h / 2 } : { ...VUE0 };
+      const a = r ? { s: clamp(Math.min(CADRE.w / (r.w + 280), CADRE.h / (r.h + 260)), 1, 2.4), cx: r.x + r.w / 2, cy: r.y + r.h / 2 } : { ...VUE0 };
       anim = { t: 0, de: { ...vue }, a };
     },
     selection(z) { choisi = z; },

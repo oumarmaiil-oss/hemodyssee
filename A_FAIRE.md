@@ -6,7 +6,7 @@ Mis à jour le 16 novembre 2026.
 - [ ] **Fusionner la pull request n° 1** vers `main` (sinon le site en ligne ne change pas) :
       https://github.com/oumarmaiil-oss/hemodyssee/pull/1
 - [x] **GoatCounter** installé (tableau de bord : https://marsow.goatcounter.com).
-- [ ] **Adresse mail** à afficher dans la signature (pied de page de `src/ui/App.tsx`) et dans `LICENSE`.
+- [x] **Adresse mail** ajoutée (signature, README, licences) : oumarmaiil@gmail.com.
 - [ ] **Essai sur un vrai téléphone Android d'entrée de gamme** : fluidité du cœur 3D, ouverture
       de la fenêtre Contact, présentation « HTA non contrôlée ». Les tests ont été faits sur
       téléphone émulé, sans carte graphique : la fluidité réelle n'a pas pu être mesurée.
@@ -32,6 +32,15 @@ Mis à jour le 16 novembre 2026.
       (Amloperin®, Tensoplus®, Genvas®, Rixa GH®, Dapagen®) avant usage en visite.
 - [ ] **Présentation « HTA non contrôlée »** : relire les textes (`src/content/presentations.ts`,
       id `visite`) avant de la montrer à des médecins.
+
+## Fait le 16 novembre 2026 (organisation globale)
+- Mention permanente « Glissez pour faire tourner · pincez pour zoomer » sur la scène 3D, sur tous les écrans,
+  en plus de l'animation à chaque chargement.
+- Cœur 2D et Voyage cadrés en entier dès l'ouverture (cerveau → jambes).
+- Bouton « Réinitialiser » (en-tête) : tout revient à l'état de départ, avec « Annuler ».
+- Barre « N maladies · N traitements appliqués · Tout retirer » toujours visible sous les onglets, avec « Annuler ».
+- Bruits du cœur : volume +50 %, souffles +40 %, limiteur anti-saturation.
+- Adresse mail dans la signature, le README et les licences.
 
 ## Fait le 16 novembre 2026 (navigation tactile)
 - Astuce animée « Glissez pour faire tourner · pincez pour zoomer » sur le cœur 3D (jusqu'au premier geste).

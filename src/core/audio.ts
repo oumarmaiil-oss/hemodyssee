@@ -26,9 +26,10 @@ export class Son {
   private sortie: GainNode | null = null;
   private bruit: AudioBuffer | null = null;
   private vol: GainNode | null = null;
+  private lim: DynamicsCompressorNode | null = null;
   private dest: MediaStreamAudioDestinationNode | null = null;
   actif = false;
-  volume = 0.8;
+  volume = 1.2; // +50 % (les haut-parleurs de téléphone sont petits) ; un limiteur évite la saturation
 
   /** À appeler depuis un geste de l'utilisateur (exigence des navigateurs, iOS compris). */
   activer(): boolean {
@@ -44,7 +45,10 @@ export class Son {
         const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100;
         const comp = this.ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 3;
         const vol = this.ctx.createGain(); vol.gain.value = this.volume; this.vol = vol;
-        hp.connect(pk).connect(lp).connect(comp).connect(vol).connect(this.ctx.destination);
+        // Limiteur final : le volume plus fort ne sature pas, même avec plusieurs souffles à la fois.
+        const lim = this.ctx.createDynamicsCompressor(); lim.threshold.value = -2; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.12;
+        hp.connect(pk).connect(lp).connect(comp).connect(vol).connect(lim).connect(this.ctx.destination);
+        this.lim = lim;
         this.sortie = this.ctx.createGain();
         this.sortie.connect(hp);
         const n = this.ctx.sampleRate;
@@ -66,7 +70,7 @@ export class Son {
   /** Flux audio pour l'enregistrement vidéo (null si le son n'est pas activé). */
   flux(): MediaStream | null {
     if (!this.ctx || !this.vol || !this.actif) return null;
-    if (!this.dest) { this.dest = this.ctx.createMediaStreamDestination(); this.vol.connect(this.dest); }
+    if (!this.dest) { this.dest = this.ctx.createMediaStreamDestination(); (this.lim ?? this.vol).connect(this.dest); }
     return this.dest.stream;
   }
 
@@ -86,7 +90,7 @@ export class Son {
     const src = c.createBufferSource(); src.buffer = this.bruit; src.loop = true;
     const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
     const g = c.createGain();
-    const a = gain;
+    const a = gain * 1.4; // souffles +40 % pour qu'on les distingue bien des bruits B1 et B2
     g.gain.setValueAtTime(0.0001, t0);
     if (forme === 'losange') { g.gain.linearRampToValueAtTime(a, t0 + duree * 0.45); g.gain.linearRampToValueAtTime(0.0001, t0 + duree); }
     else if (forme === 'plateau') { g.gain.linearRampToValueAtTime(a, t0 + 0.03); g.gain.setValueAtTime(a, t0 + duree - 0.03); g.gain.linearRampToValueAtTime(0.0001, t0 + duree); }

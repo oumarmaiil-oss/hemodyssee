@@ -19,6 +19,6 @@ Pour que chacun puisse contribuer sereinement :
 
 ## Application
 Le mainteneur peut modifier ou supprimer un message, et exclure une personne du projet en cas
-de manquement. Pour signaler un problème : WhatsApp +221 77 414 47 99.
+de manquement. Pour signaler un problème : WhatsApp +221 77 414 47 99 ou oumarmaiil@gmail.com.
 
 Inspiré du Contributor Covenant (https://www.contributor-covenant.org/fr/).

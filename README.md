@@ -66,7 +66,7 @@ grandeur, pas l'évolution d'un patient réel. Il ne remplace ni l'avis médical
 Usage commercial, version personnalisée ou partenariat : contacter l'auteur.
 
 ## Auteur
-**Dr Oumar Sow**, pharmacien, Dakar (Sénégal). WhatsApp : +221 77 414 47 99.
+**Dr Oumar Sow**, pharmacien, Dakar (Sénégal). WhatsApp : +221 77 414 47 99 · courriel : oumarmaiil@gmail.com.
 
 ---
 

@@ -1,6 +1,6 @@
 /** Application Hémodyssée : état global, mise en page, en-tête et accueil. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Map, Play, RefreshCw, Share2, TrendingUp, X } from 'lucide-react';
+import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Map, Play, RefreshCcw, RefreshCw, Share2, TrendingUp, X } from 'lucide-react';
 import { apresDelaiEtVoix } from '../core/voix.ts';
 import { AidesDefilement } from './Defilement.tsx';
 import { IconeContact, partagerApp, Signalement, WHATSAPP, WHATSAPP_AFFICHE } from './Signalement.tsx';
@@ -184,6 +184,33 @@ export default function App() {
     else if (son.activer()) setSonOn(true);
   };
 
+  // Réinitialiser : tout revient à l'état de départ (scène, maladies, traitements, lecture, zoom, coupe…),
+  // avec « Annuler » pendant quelques secondes pour qui aurait appuyé par erreur.
+  const [cleScene, setCleScene] = useState(0);
+  const [annulation, setAnnulation] = useState<{ message: string; vue: Vue; modeCoeur: '3d' | 'coeur2d'; onglet: Onglet; zone: ZoneId | null; actives: PathoActive[]; focusPatho: string | null; traitement: Traitement; vueEvo: VueEvolution | null } | null>(null);
+  useEffect(() => { if (!annulation) return; const t = setTimeout(() => setAnnulation(null), 8000); return () => clearTimeout(t); }, [annulation]);
+  const reinitialiser = () => {
+    setAnnulation({ message: 'Tout est revenu à l\'état de départ.', vue, modeCoeur, onglet, zone, actives, focusPatho, traitement, vueEvo });
+    setPres(null); avantPres.current = null; setTour(null); setSeq(null);
+    setActives([]); setTraitement({}); setVueEvo(null); setZone(null); setFocusPatho(null); setHisto([]);
+    setOnglet('explorer'); setModeCoeur('3d'); setVue('3d'); setRalenti(false);
+    if (sonOn) { son.couper(); setSonOn(false); }
+    setCleScene((n) => n + 1); // la scène repart de zéro : cadrage, coupe, transparence, ECG, astuce 3D
+    panneau.current?.scrollTo({ top: 0 });
+  };
+  // Retirer d'un coup toutes les maladies et tous les traitements (sans toucher à la vue ni au cadrage).
+  const toutRetirer = () => {
+    setAnnulation({ message: 'Maladies et traitements retirés.', vue, modeCoeur, onglet, zone, actives, focusPatho, traitement, vueEvo });
+    setPres(null); avantPres.current = null; setSeq(null);
+    setActives([]); setTraitement({}); setVueEvo(null); setFocusPatho(null);
+  };
+  const annuler = () => {
+    const a = annulation; if (!a) return;
+    setAnnulation(null);
+    setActives(a.actives); setTraitement(a.traitement); setVueEvo(a.vueEvo); setFocusPatho(a.focusPatho);
+    setOnglet(a.onglet); setModeCoeur(a.modeCoeur); setVue(a.vue); setZone(a.zone);
+  };
+
   const ONGLETS: { id: Onglet; nom: string; icone: typeof Map; badge?: number }[] = [
     { id: 'explorer', nom: 'Explorer', icone: Map },
     { id: 'maladies', nom: 'Maladies et traitements', icone: HeartPulse, badge: actives.length || undefined },
@@ -201,6 +228,7 @@ export default function App() {
             <polygon fill="#00853F" points="15,6.2 15.95,9.1 19,9.1 16.53,10.9 17.47,13.8 15,12 12.53,13.8 13.47,10.9 11,9.1 14.05,9.1" />
           </svg>
           · <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">WhatsApp {WHATSAPP_AFFICHE}</a>
+          · <a href="mailto:oumarmaiil@gmail.com" className="underline decoration-dotted hover:text-txt">oumarmaiil@gmail.com</a>
           · v{__VERSION__}
           · <button onClick={() => void partagerApp()} className="underline decoration-dotted hover:text-txt">Partager l'application</button>
         </p>
@@ -231,7 +259,7 @@ export default function App() {
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-7 h-7 rounded-full bg-gradient-to-br from-sang to-[#7a1424] grid place-items-center shadow-[0_0_18px_rgba(224,65,78,.45)]"><HeartPulse size={16} /></span>
             <div className="leading-tight min-w-0">
-              <div className="font-display text-[17px] sm:text-[19px] font-bold flex items-center gap-1.5">Hémodyssée <span title="Version bêta : vos retours sont les bienvenus (bouton Contact)" className="font-sans text-[9px] font-bold uppercase tracking-wider text-accent border border-accent/40 rounded px-1 py-px leading-none">Bêta</span></div>
+              <div className="font-display text-[17px] sm:text-[19px] font-bold flex items-center gap-1.5">Hémodyssée <span title="Version bêta : vos retours sont les bienvenus (bouton Contact)" className="max-[379px]:hidden font-sans text-[9px] font-bold uppercase tracking-wider text-accent border border-accent/40 rounded px-1 py-px leading-none">Bêta</span></div>
               <div className="text-[10.5px] text-dim hidden md:block">Le voyage du sang, du cœur aux organes</div>
             </div>
           </div>
@@ -248,6 +276,7 @@ export default function App() {
           <span className="ml-auto lg:ml-0" />
           {accesLabo && <button onClick={() => setLabo((v) => !v)} className={`btn-icone ${labo ? 'actif' : ''}`} title="Mode labo (gamme commerciale)" aria-label="Mode labo"><Briefcase size={16} /></button>}
           {installer && <button onClick={() => { void installer.prompt(); setInstaller(null); }} className="btn-icone actif" title="Installer l'application" aria-label="Installer l'application"><Download size={16} /></button>}
+          <button onClick={reinitialiser} className="btn-icone lg:!w-auto lg:px-2.5 lg:gap-1.5 lg:!flex lg:items-center lg:text-[12.5px] lg:font-semibold" title="Tout réinitialiser : revenir à l'état de départ" aria-label="Tout réinitialiser"><RefreshCcw size={16} /><span className="hidden lg:inline">Réinitialiser</span></button>
           <button onClick={() => void partagerApp()} className="btn-icone" title="Partager l'application" aria-label="Partager l'application"><Share2 size={16} /></button>
           <button onClick={() => setSignaler(true)} className="h-[34px] rounded-[10px] px-2.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-[#25d366] border border-[#25d366]/40 bg-[#25d366]/10 active:scale-95 transition-transform touch-manipulation" title="Contacter l'auteur, signaler un problème ou suggérer" aria-label="Contacter ou signaler"><IconeContact size={16} /> Contact</button>
         </div>
@@ -266,7 +295,7 @@ export default function App() {
       <main className="flex-1 min-h-0 max-w-[1600px] w-full mx-auto p-2 sm:p-4 grid gap-2 lg:gap-3 grid-rows-[auto_minmax(0,1fr)] grid-cols-[minmax(0,1fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col gap-2 lg:gap-3 min-w-0">
           <div className={`${tour !== null || seq !== null || pres || lectLoc ? 'h-[50dvh]' : 'h-[34dvh]'} transition-[height] duration-300 min-h-[220px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
-            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} sonOn={sonOn} onSon={basculerSon} onRalenti={() => setRalenti((v) => !v)} legende={legende} onVue={setVue}
+            <Stage key={cleScene} vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} sonOn={sonOn} onSon={basculerSon} onRalenti={() => setRalenti((v) => !v)} legende={legende} onVue={setVue}
               onVoyage3D={() => { setSeq(null); setPres(null); setVue('3d'); setTourPause(false); setTour(0); }}
               tourActif={tour !== null}
               lecture={tour !== null ? { titre: 'Voyage du sang', texte: TOUR[tour].etape, detail: DETAILS_VISITE[TOUR[tour].z]?.[niveau === 1 ? 0 : 1], index: tour, total: TOUR.length, pause: tourPause, voixDetail: true }
@@ -324,6 +353,18 @@ export default function App() {
               </button>
             ))}
           </nav>
+          {(actives.length > 0 || Object.keys(traitement).length > 0) && (
+            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-line bg-sang/8 text-[12px]">
+              <span className="w-1.5 h-1.5 rounded-full bg-sang shrink-0" />
+              <span className="flex-1 min-w-0 truncate text-muted">
+                {actives.length > 0 && <><b className="text-txt">{actives.length}</b> maladie{actives.length > 1 ? 's' : ''}</>}
+                {actives.length > 0 && Object.keys(traitement).length > 0 && ' · '}
+                {Object.keys(traitement).length > 0 && <><b className="text-txt">{Object.keys(traitement).length}</b> traitement{Object.keys(traitement).length > 1 ? 's' : ''}</>}
+                {' '}appliqué{actives.length + Object.keys(traitement).length > 1 ? 's' : ''}
+              </span>
+              <button onClick={toutRetirer} className="shrink-0 rounded-lg border border-sang/50 bg-sang/15 text-white font-semibold px-2.5 py-1 inline-flex items-center gap-1 active:scale-95 transition-transform touch-manipulation" aria-label="Retirer toutes les maladies et tous les traitements"><X size={13} /> Tout retirer</button>
+            </div>
+          )}
           <div className="relative flex-1 min-h-0 flex flex-col">
           <div ref={panneau} className="flex-1 overflow-y-auto scroll-thin p-3.5 pr-5 lg:pr-3.5" data-testid="panneau">
             {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} etat={etatScene} actives={actives} onZone={onZone} onTogglePatho={togglePatho} onVue={setVue} onVoirPatho={(id) => { setFocusPatho(id); }} />}
@@ -357,6 +398,12 @@ export default function App() {
         `PA ${etatScene.pas}/${etatScene.pad} · FC ${etatScene.fc} · FE ${Math.round(etatScene.fe * 100)} %`,
         `Appareil : ${navigator.userAgent}`, `Écran : ${window.innerWidth}×${window.innerHeight}`,
       ].join('\n')} />}
+      {annulation && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 rounded-2xl border border-line bg-panel shadow-2xl px-4 py-2.5 flex items-center gap-3 text-sm fade-in" role="status">
+          <RefreshCcw size={15} className="text-accent" /> {annulation.message}
+          <button onClick={annuler} className="rounded-lg bg-card2 border border-line font-semibold px-3 py-1">Annuler</button>
+        </div>
+      )}
       {maj && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 rounded-2xl border border-accent/40 bg-panel shadow-2xl px-4 py-3 flex items-center gap-3 text-sm fade-in">
           <RefreshCw size={16} className="text-accent" /> Nouvelle version d'Hémodyssée installée.

@@ -415,10 +415,13 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
         </div>
       )}
 
-      {vue === '3d' && pret && !astuce3D && !outils && (
-        <div className="absolute z-10 top-12 right-2 lg:top-14 pointer-events-none rounded-full bg-ink/80 border border-line px-2 py-0.5 text-[10.5px] lg:text-[11px] font-semibold text-muted inline-flex items-center gap-1" role="note" aria-label="Cœur en 3D : faire glisser pour tourner, pincer pour zoomer">
-          <RotateCw size={11} className="text-accent" /> 3D
-          <span>· glisser pour tourner</span>
+      {/* Mention permanente sur la scène 3D (l'appareil peut être prêté) : tout en bas sur téléphone et tablette,
+          au-dessus de l'ECG et du bouton du voyage sur grand écran. */}
+      {vue === '3d' && pret && !astuce3D && (
+        <div className={`absolute z-10 left-1/2 -translate-x-1/2 pointer-events-none whitespace-nowrap rounded-full bg-ink/70 px-2 py-px text-[10px] sm:text-[10.5px] lg:text-[11px] font-semibold text-muted inline-flex items-center gap-1 ${lecture ? 'top-12 lg:top-auto lg:bottom-28' : `bottom-0.5 ${traces === 'aucun' ? 'lg:bottom-14' : traces === 'tout' ? 'lg:bottom-[172px]' : 'lg:bottom-[104px]'}`}`} role="note">
+          <RotateCw size={11} className="text-accent shrink-0" />
+          <span className="pointer-coarse:inline hidden">Glissez pour faire tourner · pincez pour zoomer</span>
+          <span className="pointer-coarse:hidden">Cliquez-glissez pour tourner · molette pour zoomer</span>
         </div>
       )}
 
@@ -437,7 +440,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
 
       {/* Phase du cycle */}
       {niveau >= 2 && (
-        <div className="absolute bottom-2.5 left-2 lg:bottom-auto lg:top-14 flex items-center gap-1.5 rounded-full bg-ink/75 border border-line px-2 py-0.5 text-[10.5px] lg:text-xs text-muted pointer-events-none max-w-[38%] lg:max-w-[60%] truncate">
+        <div className={`absolute ${vue === '3d' ? 'bottom-6' : 'bottom-2.5'} left-2 lg:bottom-auto lg:top-14 flex items-center gap-1.5 rounded-full bg-ink/75 border border-line px-2 py-0.5 text-[10.5px] lg:text-xs text-muted pointer-events-none max-w-[38%] lg:max-w-[60%] truncate`}>
           <span className="w-2 h-2 rounded-full bg-sang animate-pulse" />
           <span ref={phaseRef}>—</span>
         </div>
@@ -555,7 +558,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
           </div>
         </div>
       ) : (vue === '3d' || vue === '2d') && pret && (
-        <button onClick={onVoyage3D} aria-label="Voir le voyage du sang" className="absolute bottom-6 right-2 sm:bottom-2.5 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 whitespace-nowrap rounded-full bg-sang/85 sm:bg-sang hover:brightness-110 active:scale-95 transition-transform text-white text-[10.5px] sm:text-[12px] font-semibold sm:font-bold pl-1.5 pr-2 py-0.5 sm:pl-2.5 sm:pr-3.5 sm:py-1.5 inline-flex items-center gap-1 sm:gap-1.5 touch-manipulation before:absolute before:-inset-2.5 before:content-[''] sm:before:hidden shadow-[0_1px_6px_rgba(224,65,78,.3)] sm:shadow-[0_4px_18px_rgba(224,65,78,.45)]">
+        <button onClick={onVoyage3D} aria-label="Voir le voyage du sang" className="absolute bottom-6 right-2 sm:bottom-7 lg:bottom-2.5 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 whitespace-nowrap rounded-full bg-sang/85 sm:bg-sang hover:brightness-110 active:scale-95 transition-transform text-white text-[10.5px] sm:text-[12px] font-semibold sm:font-bold pl-1.5 pr-2 py-0.5 sm:pl-2.5 sm:pr-3.5 sm:py-1.5 inline-flex items-center gap-1 sm:gap-1.5 touch-manipulation before:absolute before:-inset-2.5 before:content-[''] sm:before:hidden shadow-[0_1px_6px_rgba(224,65,78,.3)] sm:shadow-[0_4px_18px_rgba(224,65,78,.45)]">
           <Play size={9} fill="currentColor" className="sm:hidden" /><Play size={13} fill="currentColor" className="hidden sm:block" /> <span className="sm:hidden">Voyage</span><span className="hidden sm:inline">Voir le voyage du sang</span>
         </button>
       )}
@@ -566,7 +569,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
       )}
 
       {/* Signature discrète dans la scène */}
-      <div className="absolute bottom-0.5 right-2 text-[9px] tracking-wide text-white/25 pointer-events-none select-none">Hémodyssée · Dr O. Sow</div>
+      <div className={`absolute bottom-0.5 right-2 text-[9px] tracking-wide text-white/25 pointer-events-none select-none ${vue === '3d' ? 'hidden lg:block' : ''}`}>Hémodyssée · Dr O. Sow</div>
 
     </div>
   );
