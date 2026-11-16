@@ -33,6 +33,13 @@ Mis à jour le 16 novembre 2026.
 - [ ] **Présentation « HTA non contrôlée »** : relire les textes (`src/content/presentations.ts`,
       id `visite`) avant de la montrer à des médecins.
 
+## Fait le 16 novembre 2026 (navigation tactile)
+- Astuce animée « Glissez pour faire tourner · pincez pour zoomer » sur le cœur 3D (jusqu'au premier geste).
+- Zoom sur toutes les scènes : boutons + / −, pincement à deux doigts, molette ; déplacement au doigt une fois zoomé ;
+  « Tout voir » recadre. Un glisser n'est pas pris pour un clic sur une zone.
+- Panneau : barre de glissement à attraper au doigt (écrans tactiles) et bouton « Haut ».
+- Téléphone et tablette en portrait : la signature passe à la fin du panneau (plus d'espace pour la scène).
+
 ## Fait le 16 novembre 2026 (ouverture du projet)
 - Licences : code AGPL-3.0 (`LICENSE`), contenu CC BY-NC-SA 4.0 (`LICENCE-CONTENU.md`) ; lien
   « code source » dans la signature (exigé par l'AGPL pour un site web).

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Map, Play, RefreshCw, Share2, TrendingUp, X } from 'lucide-react';
 import { apresDelaiEtVoix } from '../core/voix.ts';
+import { AidesDefilement } from './Defilement.tsx';
 import { IconeContact, partagerApp, Signalement, WHATSAPP, WHATSAPP_AFFICHE } from './Signalement.tsx';
 import { calculer, fractionAu, evoluer, TERRAIN_NORMAL } from '../core/engine.ts';
 import { Son } from '../core/audio.ts';
@@ -64,6 +65,7 @@ export default function App() {
   const [labo, setLabo] = useState(() => accesLabo && (/[?&]labo/.test(location.search) || lire('hemo.labo') === '1'));
   const son = useRef(new Son()).current;
   const [signaler, setSignaler] = useState(false);
+  const panneau = useRef<HTMLDivElement>(null);
   const [maj, setMaj] = useState(false);
   const [installer, setInstaller] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
   useEffect(() => {
@@ -188,6 +190,39 @@ export default function App() {
     { id: 'evolution', nom: 'Évolution', icone: TrendingUp },
   ];
 
+  // Signature : en pied de page sur ordinateur ; à la fin du panneau défilant sur téléphone et tablette.
+  const signature = (
+    <>
+        <p>Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</p>
+        <p className="flex flex-wrap items-center justify-center gap-x-1.5">
+          © 2026 Hémodyssée · Dr Oumar Sow · Dakar
+          <svg viewBox="0 0 30 20" width="18" height="12" aria-label="Drapeau du Sénégal" role="img" className="inline rounded-[2px]">
+            <rect width="10" height="20" fill="#00853F" /><rect x="10" width="10" height="20" fill="#FDEF42" /><rect x="20" width="10" height="20" fill="#E31B23" />
+            <polygon fill="#00853F" points="15,6.2 15.95,9.1 19,9.1 16.53,10.9 17.47,13.8 15,12 12.53,13.8 13.47,10.9 11,9.1 14.05,9.1" />
+          </svg>
+          · <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">WhatsApp {WHATSAPP_AFFICHE}</a>
+          · v{__VERSION__}
+          · <button onClick={() => void partagerApp()} className="underline decoration-dotted hover:text-txt">Partager l'application</button>
+        </p>
+        <p>
+          Projet ouvert : <a href="https://github.com/oumarmaiil-oss/hemodyssee" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">code source</a> sous licence AGPL-3.0,
+          contenu sous <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">CC BY-NC-SA 4.0</a>.
+          {' '}<a href="https://github.com/oumarmaiil-oss/hemodyssee/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">Contribuer</a>
+        </p>
+        <details className="max-w-xl mx-auto text-left">
+          <summary className="cursor-pointer text-center py-1 hover:text-txt">Sources des chiffres</summary>
+          <ul className="space-y-1 mt-1 leading-snug">
+            <li>• Effet d'une classe d'antihypertenseur à dose standard (environ −9 mmHg) et additivité des associations : Law MR et al., BMJ 2009;338:b1665.</li>
+            <li>• Risque relatif par 10 mmHg de PAS en moins (AVC 0,73 ; coronaires 0,83 ; IC 0,72) : Ettehad D et al., Lancet 2016;387:957-67.</li>
+            <li>• −22 % d'événements vasculaires par mmol/L de LDL en moins : Cholesterol Treatment Trialists' Collaboration, Lancet 2010;376:1670-81.</li>
+            <li>• FA : risque d'AVC multiplié par environ 5 (Wolf PA et al., Stroke 1991) ; anticoagulation : environ −64 % (Hart RG et al., Ann Intern Med 2007).</li>
+            <li>• Recommandations ESC/ESH (HTA 2023-2024), ESC (dyslipidémies 2019, IC 2021-2023, FA 2024, valvulopathies 2021).</li>
+            <li>• Modèle simplifié : bons sens de variation et bons ordres de grandeur, pas l'évolution d'un patient réel.</li>
+          </ul>
+        </details>
+    </>
+  );
+
   return (
     <div className="h-[100dvh] lg:h-auto lg:min-h-full flex flex-col overflow-hidden lg:overflow-visible">
       {/* En-tête */}
@@ -289,7 +324,8 @@ export default function App() {
               </button>
             ))}
           </nav>
-          <div className="flex-1 overflow-y-auto scroll-thin p-3.5" data-testid="panneau">
+          <div className="relative flex-1 min-h-0 flex flex-col">
+          <div ref={panneau} className="flex-1 overflow-y-auto scroll-thin p-3.5 pr-5 lg:pr-3.5" data-testid="panneau">
             {onglet === 'explorer' && <PanneauExplorer zone={zone} niveau={niveau} vue={vue} etat={etatScene} actives={actives} onZone={onZone} onTogglePatho={togglePatho} onVue={setVue} onVoirPatho={(id) => { setFocusPatho(id); }} />}
             {onglet === 'maladies' && <PanneauMaladies niveau={niveau} vue={vue} zone={zone} actives={actives} focus={focusPatho} traitement={traitement} etat={etatAuj} etatSans={etatSans} labo={labo}
               onFocus={setFocusPatho} onToggle={togglePatho} onDose={onDose} onRemplacer={setTraitement} onSequence={lancerSequence} onComparer={comparer}
@@ -299,6 +335,9 @@ export default function App() {
               onEtapes={() => { setTour(null); setSeq(null); setVue('vaisseau'); setDemandeEtapes((n) => n + 1); }}
               onSeverite={(id, s) => setActives((a) => a.map((x) => (x.id === id ? { ...x, s } : x)))} onScenario={(a) => { setActives(a); setTraitement({}); setVueEvo(null); setFocusPatho(null); if (a[0] && ZONE_LESION[a[0].id]) setZone(ZONE_LESION[a[0].id]); }} />}
             {onglet === 'evolution' && <PanneauEvolution terrain={terrain} traitement={traitement} vueEvo={vueEvo} onVueEvo={setVueEvo} onAllerTraitements={() => setOnglet('maladies')} />}
+            <footer className="lg:hidden mt-6 pt-3 border-t border-line text-center text-[11px] text-dim space-y-1">{signature}</footer>
+          </div>
+          <AidesDefilement cible={panneau} cle={onglet} />
           </div>
           {onglet === 'explorer' && focusPatho && (
             <button onClick={() => setOnglet('maladies')} className="m-2 mt-0 rounded-xl bg-card2 border border-line py-2 text-[13px] font-semibold">Ouvrir la fiche : {PATHO_PAR_ID[focusPatho].nom} →</button>
@@ -306,34 +345,8 @@ export default function App() {
         </aside>
       </main>
 
-      <footer className="text-center text-[11px] text-dim pb-4 pt-1 px-4 space-y-1">
-        <p>Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</p>
-        <p className="flex flex-wrap items-center justify-center gap-x-1.5">
-          © 2026 Hémodyssée · Dr Oumar Sow · Dakar
-          <svg viewBox="0 0 30 20" width="18" height="12" aria-label="Drapeau du Sénégal" role="img" className="inline rounded-[2px]">
-            <rect width="10" height="20" fill="#00853F" /><rect x="10" width="10" height="20" fill="#FDEF42" /><rect x="20" width="10" height="20" fill="#E31B23" />
-            <polygon fill="#00853F" points="15,6.2 15.95,9.1 19,9.1 16.53,10.9 17.47,13.8 15,12 12.53,13.8 13.47,10.9 11,9.1 14.05,9.1" />
-          </svg>
-          · <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">WhatsApp {WHATSAPP_AFFICHE}</a>
-          · v{__VERSION__}
-          · <button onClick={() => void partagerApp()} className="underline decoration-dotted hover:text-txt">Partager l'application</button>
-        </p>
-        <p>
-          Projet ouvert : <a href="https://github.com/oumarmaiil-oss/hemodyssee" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">code source</a> sous licence AGPL-3.0,
-          contenu sous <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">CC BY-NC-SA 4.0</a>.
-          {' '}<a href="https://github.com/oumarmaiil-oss/hemodyssee/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">Contribuer</a>
-        </p>
-        <details className="max-w-xl mx-auto text-left">
-          <summary className="cursor-pointer text-center py-1 hover:text-txt">Sources des chiffres</summary>
-          <ul className="space-y-1 mt-1 leading-snug">
-            <li>• Effet d'une classe d'antihypertenseur à dose standard (environ −9 mmHg) et additivité des associations : Law MR et al., BMJ 2009;338:b1665.</li>
-            <li>• Risque relatif par 10 mmHg de PAS en moins (AVC 0,73 ; coronaires 0,83 ; IC 0,72) : Ettehad D et al., Lancet 2016;387:957-67.</li>
-            <li>• −22 % d'événements vasculaires par mmol/L de LDL en moins : Cholesterol Treatment Trialists' Collaboration, Lancet 2010;376:1670-81.</li>
-            <li>• FA : risque d'AVC multiplié par environ 5 (Wolf PA et al., Stroke 1991) ; anticoagulation : environ −64 % (Hart RG et al., Ann Intern Med 2007).</li>
-            <li>• Recommandations ESC/ESH (HTA 2023-2024), ESC (dyslipidémies 2019, IC 2021-2023, FA 2024, valvulopathies 2021).</li>
-            <li>• Modèle simplifié : bons sens de variation et bons ordres de grandeur, pas l'évolution d'un patient réel.</li>
-          </ul>
-        </details>
+      <footer className="hidden lg:block text-center text-[11px] text-dim pb-4 pt-1 px-4 space-y-1">
+        {signature}
       </footer>
 
       {accueil && <Accueil onChoix={choisirNiveau} onDemo={() => { choisirNiveau(1); setOnglet('maladies'); lancerPresentation('hta'); }} />}

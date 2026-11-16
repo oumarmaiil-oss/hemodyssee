@@ -80,3 +80,8 @@ input[type="range"] { accent-color: var(--color-sang); width: 100%; }
   #fiche-impression th { background: #f2f2f2; }
   #fiche-impression .pied { margin-top: 16pt; font-size: 8.5pt; color: #666; }
 }
+
+/* Astuce 3D : un doigt qui glisse de gauche à droite. */
+@keyframes astuce-glisse { 0%, 15% { transform: translateX(-14px); opacity: 0; } 30% { opacity: 1; } 75% { transform: translateX(14px); opacity: 1; } 100% { transform: translateX(14px); opacity: 0; } }
+.astuce-doigt { animation: astuce-glisse 2.2s ease-in-out infinite; transform-box: fill-box; }
+@media (prefers-reduced-motion: reduce) { .astuce-doigt { animation: none; } }

@@ -4,6 +4,7 @@
  * dans les capillaires ; les lésions et la perfusion des organes sont visibles.
  * Un clic sur une zone zoome dessus.
  */
+import { installerZoom2D } from './zoom2d.ts';
 import type { Instant } from '../core/clock.ts';
 import type { Etat } from '../core/types.ts';
 import { effetsVisibles } from '../core/effets.ts';
@@ -83,6 +84,8 @@ export interface Circuit2D {
   setEtiquettes(on: boolean, noms: Partial<Record<ZoneId, string>>): void;
   /** Définition imposée pour l'export (pixels par point CSS) ; null = automatique. */
   setDefinition(pr: number | null): void;
+  /** Zoom (boutons + / −) : facteur multiplicatif. */
+  zoomer(f: number): void;
   dispose(): void;
 }
 
@@ -123,6 +126,7 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
   const vue = { ...VUE0 };
   let anim: { t: number; de: typeof vue; a: typeof vue } | null = null;
   let temps = 0;
+  const zoom = installerZoom2D(cv, { vue, vue0: VUE0, sMax: opt.coeur ? 6 : 5, W, H, taille: () => [cw, ch], k0: () => Math.min(cw / W, ch / H), animer: (a) => { anim = { t: 0, de: { ...vue }, a }; }, arreterAnim: () => { anim = null; } });
 
   function base() {
     const k = Math.min(cw / W, ch / H) * vue.s;
@@ -135,7 +139,7 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
   }
   const evPos = (ev: PointerEvent) => { const r = cv.getBoundingClientRect(); return versMonde(ev.clientX - r.left, ev.clientY - r.top); };
   const onMove = (ev: PointerEvent) => { if (ev.pointerType !== 'mouse') return; const z = zoneEn(...evPos(ev)); if (z !== survol) { survol = z; cv.style.cursor = z ? 'pointer' : 'default'; opt.onHover?.(z); } };
-  const onClick = (ev: PointerEvent) => opt.onPick?.(zoneEn(...evPos(ev)));
+  const onClick = (ev: PointerEvent) => { if (!zoom.aDeplace()) opt.onPick?.(zoneEn(...evPos(ev))); };
   cv.addEventListener('pointermove', onMove);
   cv.addEventListener('pointerup', onClick);
 
@@ -464,6 +468,7 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
     selection(z) { choisi = z; },
     setEtiquettes(on, n) { labels = on; noms = n; },
     setDefinition(pr) { defImposee = pr; redim(); },
-    dispose() { ro.disconnect(); cv.removeEventListener('pointermove', onMove); cv.removeEventListener('pointerup', onClick); cv.remove(); },
+    zoomer: (f) => zoom.zoomer(f),
+    dispose() { zoom.dispose(); ro.disconnect(); cv.removeEventListener('pointermove', onMove); cv.removeEventListener('pointerup', onClick); cv.remove(); },
   };
 }

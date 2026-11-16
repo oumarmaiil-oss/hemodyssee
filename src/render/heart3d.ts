@@ -32,6 +32,8 @@ export interface Coeur3D {
   selection(z: ZoneId | null): void;
   setEtiquettes(on: boolean, noms: Partial<Record<ZoneId, string>>): void;
   vueInitiale(): void;
+  /** Zoom (boutons + / −) : rapproche ou éloigne la caméra, facteur multiplicatif. */
+  zoomer(f: number): void;
   /** Définition imposée pour l'export (pixels par point CSS) ; null = automatique. */
   setDefinition(pr: number | null): void;
   dispose(): void;
@@ -871,6 +873,12 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
       }
     },
     vueInitiale() { allerVers(CAM0.clone(), CIBLE0.clone()); },
+    zoomer(f) {
+      const cible = controls.target.clone();
+      const off = camera.position.clone().sub(cible);
+      const d = Math.min(controls.maxDistance, Math.max(controls.minDistance, off.length() / f));
+      allerVers(cible.clone().add(off.setLength(d)), cible);
+    },
     setDefinition(pr) {
       defImposee = pr;
       renderer.setPixelRatio(pr ?? prActuel);

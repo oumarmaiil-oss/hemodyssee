@@ -1,7 +1,7 @@
 /** Scène principale : cœur 3D ou voyage du sang 2D, animés par une horloge commune. */
 import { useEffect, useRef, useState } from 'react';
 import { apresDelaiEtVoix, choisirVoix, textePrononcable } from '../core/voix.ts';
-import { Activity, Camera, Circle, Layers, Pause, Speech, Play, RotateCcw, Scissors, SkipBack, SkipForward, Snail, Square, Tag, Volume2, VolumeX, X } from 'lucide-react';
+import { Activity, Camera, Circle, Layers, Pause, Speech, Play, RotateCcw, Scissors, SkipBack, SkipForward, Snail, Square, Tag, Volume2, VolumeX, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Horloge, NOMS_PHASES, type Phase } from '../core/clock.ts';
 import type { Son } from '../core/audio.ts';
 import type { Etat, Niveau } from '../core/types.ts';
@@ -252,6 +252,13 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
       : { texte: 'Le caillot voyage : un fragment parti d\'une plaque carotidienne bouche une artère du cerveau (AVC ischémique).', detail: 'Sur une plaque coronaire, le caillot provoque l\'infarctus ; dans une artère de jambe, l\'ischémie aiguë du membre.' }),
     index: ath.i, total: N_ATH, pause: ath.pause, voixDetail: true,
   } : null);
+  // Astuce 3D : « glissez pour faire tourner », jusqu'au premier geste sur le cœur (mémorisé sur l'appareil).
+  const [astuce3D, setAstuce3D] = useState(() => { try { return localStorage.getItem('hemo.astuce3d') !== '1'; } catch { return true; } });
+  const geste3D = () => {
+    if (!astuce3D || vue !== '3d') return;
+    setAstuce3D(false);
+    try { localStorage.setItem('hemo.astuce3d', '1'); } catch { /* stockage indisponible */ }
+  };
   // Voix off : lit chaque étape à voix haute (voix française de l'appareil, si elle existe).
   const voixDispo = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const [voix, setVoix] = useState(() => { try { return localStorage.getItem('hemo.voix') === '1'; } catch { return false; } });
@@ -373,14 +380,35 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
   return (
     <div className="relative w-full h-full overflow-hidden rounded-2xl border border-line bg-[radial-gradient(ellipse_at_50%_35%,#1b1630_0%,#0b0f1c_55%,#070a12_100%)]" data-testid="scene">
       {/* Sur téléphone, la scène s'arrête au-dessus du bandeau de lecture : rien n'est caché dessous. */}
-      <div ref={hote} onPointerLeave={() => setSurvol(null)} className={`absolute inset-x-0 top-0 ${lecture ? 'bottom-[92px] lg:bottom-0' : 'bottom-0'}`} />
+      <div ref={hote} onPointerLeave={() => setSurvol(null)} onPointerDown={geste3D} onWheel={geste3D} className={`absolute inset-x-0 top-0 ${lecture ? 'bottom-[92px] lg:bottom-0' : 'bottom-0'}`} />
       {!pret && !erreur3D && <div className="absolute inset-0 grid place-items-center text-muted text-sm">Préparation de la scène…</div>}
       {erreur3D && <div className="absolute inset-0 grid place-items-center text-center p-6 text-muted text-sm">La 3D n'est pas disponible sur cet appareil.<br />Utilisez la vue 2D.</div>}
+
+      {vue === '3d' && pret && astuce3D && !lecture && !tourActif && (
+        <div className="absolute z-10 left-1/2 top-[58%] -translate-x-1/2 -translate-y-1/2 pointer-events-none flex flex-col items-center gap-1.5 fade-in" role="note">
+          <svg viewBox="0 0 64 40" width="58" height="36" aria-hidden="true" className="astuce-main drop-shadow-[0_2px_6px_rgba(0,0,0,.6)]">
+            <path d="M10 20 a22 10 0 0 1 44 0" fill="none" stroke="#fff" strokeOpacity=".75" strokeWidth="2.2" strokeDasharray="3 4" />
+            <path d="M50 14 l5 6 l-7 2" fill="none" stroke="#fff" strokeOpacity=".85" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            <g className="astuce-doigt"><circle cx="32" cy="27" r="6" fill="#fff" fillOpacity=".9" /><circle cx="32" cy="27" r="10" fill="none" stroke="#fff" strokeOpacity=".35" strokeWidth="2" /></g>
+          </svg>
+          <div className="rounded-full bg-ink/85 border border-line px-3 py-1 text-[11.5px] sm:text-xs font-semibold text-txt whitespace-nowrap">
+            <span className="pointer-coarse:inline hidden">Glissez pour faire tourner · pincez pour zoomer</span>
+            <span className="pointer-coarse:hidden">Cliquez-glissez pour faire tourner · molette pour zoomer</span>
+          </div>
+        </div>
+      )}
 
       {/* Son et ralenti : sur la scène, coin haut gauche, sous la barre d'outils (loin de l'ECG) */}
       <div className="absolute z-20 left-2 top-12 lg:top-24 flex flex-col gap-1.5">
         <button onClick={onSon} className={`btn-icone !w-8 !h-8 ${sonOn ? 'actif' : ''}`} title={sonOn ? 'Couper les bruits du cœur' : 'Écouter les bruits du cœur'} aria-label={sonOn ? 'Couper les bruits du cœur' : 'Activer les bruits du cœur'} aria-pressed={sonOn}>{sonOn ? <Volume2 size={15} /> : <VolumeX size={15} />}</button>
         <button onClick={onRalenti} className={`btn-icone !w-8 !h-8 ${ralenti ? 'actif' : ''}`} title="Ralenti" aria-label="Ralenti" aria-pressed={ralenti}><Snail size={15} /></button>
+        {pret && (
+          <div className="mt-1.5 flex flex-col rounded-[10px] border border-line bg-ink/80 overflow-hidden">
+            <button onClick={() => { geste3D(); rendu.current?.zoomer(1.35); }} className="w-8 h-8 grid place-items-center text-muted hover:text-txt active:bg-card2 touch-manipulation" title="Zoomer" aria-label="Zoomer"><ZoomIn size={15} /></button>
+            <div className="h-px bg-line" />
+            <button onClick={() => { geste3D(); rendu.current?.zoomer(1 / 1.35); }} className="w-8 h-8 grid place-items-center text-muted hover:text-txt active:bg-card2 touch-manipulation" title="Dézoomer" aria-label="Dézoomer"><ZoomOut size={15} /></button>
+          </div>
+        )}
       </div>
 
       {/* Phase du cycle */}
