@@ -1,0 +1,16 @@
+name: Suggestion
+description: Une idée de fonction, de maladie, de présentation ou de traduction.
+title: "[Idée] "
+labels: ["suggestion"]
+body:
+  - type: textarea
+    id: idee
+    attributes:
+      label: Votre idée
+    validations:
+      required: true
+  - type: input
+    id: pour
+    attributes:
+      label: Pour qui ?
+      placeholder: "Ex. : étudiants en pharmacie, patients hypertendus, délégués médicaux"

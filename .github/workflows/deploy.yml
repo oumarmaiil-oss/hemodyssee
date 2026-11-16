@@ -50,3 +50,16 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Signale la nouvelle version aux moteurs de recherche compatibles IndexNow (Bing, Yandex, Seznam, Naver…).
+  # Google ne participe pas à IndexNow : pour Google, passer par la Search Console.
+  indexnow:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prévenir les moteurs de recherche
+        run: |
+          curl -sS -m 30 -X POST "https://api.indexnow.org/indexnow" \
+            -H "Content-Type: application/json; charset=utf-8" \
+            -d '{"host":"oumarmaiil-oss.github.io","key":"423e6d059f93c2239a49b4943af5ffa6","keyLocation":"https://oumarmaiil-oss.github.io/hemodyssee/423e6d059f93c2239a49b4943af5ffa6.txt","urlList":["https://oumarmaiil-oss.github.io/hemodyssee/"]}' \
+            -w "\nIndexNow : HTTP %{http_code}\n" || echo "IndexNow indisponible, sans conséquence pour le site."

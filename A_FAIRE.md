@@ -11,6 +11,19 @@ Mis à jour le 16 novembre 2026.
       de la fenêtre Contact, présentation « HTA non contrôlée ». Les tests ont été faits sur
       téléphone émulé, sans carte graphique : la fluidité réelle n'a pas pu être mesurée.
 
+- [ ] **Google Search Console** (seul Google l'exige, et il faut votre compte Google) :
+      search.google.com/search-console → « Préfixe de l'URL » → `https://oumarmaiil-oss.github.io/hemodyssee/`
+      → méthode « Balise HTML » → m'envoyer le code `google-site-verification` ; ensuite,
+      soumettre le sitemap `https://oumarmaiil-oss.github.io/hemodyssee/sitemap.xml`
+      et « Demander l'indexation ».
+- [ ] **Page GitHub** (⚙ à côté de « About ») : description, lien du site, topics
+      `education`, `medical-education`, `cardiology`, `pharmacy`, `senegal`, `threejs`, `react`, `pwa`.
+      Cocher aussi « Issues » dans Settings › Features si ce n'est pas déjà fait.
+- [ ] **Bing Webmaster Tools** (facultatif) : bing.com/webmasters, « Importer depuis Google Search Console ».
+- [ ] **Diffusion** : vidéo de 30 à 60 s (bouton Vidéo) sur LinkedIn, groupes WhatsApp d'étudiants, Facebook.
+- [ ] **Contrat de travail** : vérifier les clauses (non-concurrence, propriété intellectuelle) avant
+      de proposer des versions à d'autres laboratoires.
+
 ## Idées à valider
 - [ ] **Version wolof** du niveau « Découvrir » (patients). Nécessite une traduction et une
       relecture par un locuteur natif, de préférence un soignant : pas de texte médical en wolof
@@ -19,6 +32,14 @@ Mis à jour le 16 novembre 2026.
       (Amloperin®, Tensoplus®, Genvas®, Rixa GH®, Dapagen®) avant usage en visite.
 - [ ] **Présentation « HTA non contrôlée »** : relire les textes (`src/content/presentations.ts`,
       id `visite`) avant de la montrer à des médecins.
+
+## Fait le 16 novembre 2026 (ouverture du projet)
+- Licences : code AGPL-3.0 (`LICENSE`), contenu CC BY-NC-SA 4.0 (`LICENCE-CONTENU.md`) ; lien
+  « code source » dans la signature (exigé par l'AGPL pour un site web).
+- `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, modèles d'issues (erreur médicale, bug, idée) et de pull request.
+- README refait (badges, aperçu, public visé, résumé en anglais).
+- Référencement : GoatCounter, mention Bêta, données structurées, `sitemap.xml`, et signalement
+  automatique IndexNow (Bing, Yandex…) à chaque mise en ligne.
 
 ## Fait le 16 novembre 2026 (suite)
 - Son et ralenti déplacés sur la scène (coin haut gauche) ; bouton « Contact » nommé dans l'en-tête.
