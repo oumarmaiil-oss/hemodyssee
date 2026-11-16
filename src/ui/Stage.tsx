@@ -1,7 +1,7 @@
 /** Scène principale : cœur 3D ou voyage du sang 2D, animés par une horloge commune. */
 import { useEffect, useRef, useState } from 'react';
 import { apresDelaiEtVoix, choisirVoix, textePrononcable } from '../core/voix.ts';
-import { Activity, Camera, Layers, Pause, Speech, Play, RotateCcw, RotateCw, Scissors, SkipBack, SkipForward, Snail, Square, Tag, Volume2, VolumeX, Video, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Activity, Camera, Layers, Pause, Speech, Play, RotateCcw, RotateCw, Scissors, SkipBack, SkipForward, Snail, Square, Tag, Volume2, VolumeX, Maximize2, Minimize2, Video, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Horloge, NOMS_PHASES, type Phase } from '../core/clock.ts';
 import type { Son } from '../core/audio.ts';
 import type { Etat, Niveau } from '../core/types.ts';
@@ -96,7 +96,15 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
   const legendeRef = useRef(legende);
   legendeRef.current = legende;
   const [enreg, setEnreg] = useState<{ debut: number; son: boolean } | null>(null);
-  const [capture, setCapture] = useState(false); // menu « Capturer » : photo ou vidéo
+  const [capture, setCapture] = useState(false);
+  // Plein écran (surtout pour les téléphones) : la scène occupe tout l'écran ; même bouton ou Échap pour sortir.
+  const [pleinEcran, setPleinEcran] = useState(false);
+  useEffect(() => {
+    if (!pleinEcran) return;
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setPleinEcran(false); };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [pleinEcran]); // menu « Capturer » : photo ou vidéo
   // Fichier prêt : sur téléphone (et dans les navigateurs intégrés), le téléchargement direct échoue souvent ;
   // on propose alors « Partager » (WhatsApp, Photos…) et « Enregistrer », deux gestes de l'utilisateur.
   const [fichier, setFichier] = useState<{ blob: Blob; nom: string; video: boolean } | null>(null);
@@ -395,7 +403,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
   const nomSurvol = survol ? ZONES[survol].nom : null;
 
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-2xl border border-line bg-[radial-gradient(ellipse_at_50%_35%,#1b1630_0%,#0b0f1c_55%,#070a12_100%)]" data-testid="scene">
+    <div className={`${pleinEcran ? 'fixed inset-0 z-[45] rounded-none border-0' : 'relative w-full h-full rounded-2xl border border-line'} overflow-hidden bg-[radial-gradient(ellipse_at_50%_35%,#1b1630_0%,#0b0f1c_55%,#070a12_100%)]`} data-testid="scene">
       {/* Sur téléphone, la scène s'arrête au-dessus du bandeau de lecture : rien n'est caché dessous. */}
       <div ref={hote} onPointerLeave={() => setSurvol(null)} onPointerDown={geste3D} onWheel={geste3D} className={`absolute inset-x-0 top-0 ${lecture ? 'bottom-[92px] lg:bottom-0' : 'bottom-0'}`} />
       {!pret && !erreur3D && <div className="absolute inset-0 grid place-items-center text-muted text-sm">Préparation de la scène…</div>}
@@ -418,8 +426,8 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
       {/* Mention permanente sur la scène 3D (l'appareil peut être prêté) : tout en bas sur téléphone et tablette,
           au-dessus de l'ECG et du bouton du voyage sur grand écran. */}
       {vue === '3d' && pret && !astuce3D && (
-        <div className={`absolute z-10 left-1/2 -translate-x-1/2 pointer-events-none whitespace-nowrap rounded-full bg-ink/70 px-2 py-px text-[10px] sm:text-[10.5px] lg:text-[11px] font-semibold text-muted inline-flex items-center gap-1 ${lecture ? 'top-12 lg:top-auto lg:bottom-28' : `bottom-0.5 ${traces === 'aucun' ? 'lg:bottom-14' : traces === 'tout' ? 'lg:bottom-[172px]' : 'lg:bottom-[104px]'}`}`} role="note">
-          <RotateCw size={11} className="text-accent shrink-0" />
+        <div className={`absolute z-10 left-1/2 -translate-x-1/2 pointer-events-none whitespace-nowrap rounded-full bg-ink/80 border border-accent/30 px-2 py-px lg:px-3 lg:py-1 text-[10px] sm:text-[10.5px] lg:text-[13px] font-semibold text-muted lg:text-txt inline-flex items-center gap-1 lg:gap-1.5 ${lecture ? 'top-12 lg:top-auto lg:bottom-28' : `bottom-0.5 ${traces === 'aucun' ? 'lg:bottom-14' : traces === 'tout' ? 'lg:bottom-[172px]' : 'lg:bottom-[104px]'}`}`} role="note">
+          <RotateCw size={13} className="text-accent shrink-0" />
           <span className="pointer-coarse:inline hidden">Glissez pour faire tourner · pincez pour zoomer</span>
           <span className="pointer-coarse:hidden">Cliquez-glissez pour tourner · molette pour zoomer</span>
         </div>
@@ -436,7 +444,11 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
             <button onClick={() => { geste3D(); rendu.current?.zoomer(1 / 1.35); }} className="w-8 h-8 grid place-items-center text-muted hover:text-txt active:bg-card2 touch-manipulation" title="Dézoomer" aria-label="Dézoomer"><ZoomOut size={15} /></button>
           </div>
         )}
+        <button onClick={() => setPleinEcran((v) => !v)} className={`btn-icone !w-8 !h-8 mt-1.5 !hidden lg:!grid ${pleinEcran ? 'actif' : ''}`} title={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'} aria-label={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'} aria-pressed={pleinEcran}>{pleinEcran ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
       </div>
+
+      {/* Plein écran sur téléphone et tablette : à droite, au-dessus du bouton du voyage (la colonne de gauche est pleine). */}
+      <button onClick={() => setPleinEcran((v) => !v)} className={`lg:hidden absolute z-20 right-2 ${lecture ? 'top-12' : 'bottom-14'} btn-icone !w-8 !h-8 ${pleinEcran ? 'actif' : ''}`} title={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'} aria-label={pleinEcran ? 'Quitter le plein écran' : 'Plein écran'} aria-pressed={pleinEcran}>{pleinEcran ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
 
       {/* Phase du cycle */}
       {niveau >= 2 && (
@@ -478,7 +490,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, on
         {(vue === '3d' || vue === 'coeur2d') && (
           <div className="seg shrink-0">
             <button className={vue === 'coeur2d' ? 'actif' : ''} onClick={() => onVue('coeur2d')}>2D</button>
-            <button className={vue === '3d' ? 'actif' : ''} onClick={() => onVue('3d')}>3D</button>
+            <button className={vue === '3d' ? 'actif' : ''} onClick={() => onVue('3d')} title="Cœur en 3D : faites-le tourner" aria-label="3D"><span className="inline-flex items-center gap-1">3D<RotateCw size={11} className="text-accent" /></span></button>
           </div>
         )}
         {vue === '3d' && !tourActif && (
