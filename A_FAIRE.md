@@ -18,7 +18,7 @@ Mis à jour le 16 novembre 2026.
 - [ ] **Version wolof** du niveau « Découvrir » (patients). Nécessite une traduction et une
       relecture par un locuteur natif, de préférence un soignant : pas de texte médical en wolof
       sans relecture humaine.
-- [ ] **Mode labo** : vérifier les dosages et noms de la gamme GHPL dans `src/content/labo.ts`
+- [ ] **Mode labo** (accès : ouvrir une fois le site avec `?labo` à la fin de l'adresse) : vérifier les dosages et noms de la gamme GHPL dans `src/content/labo.ts`
       (Amloperin®, Tensoplus®, Genvas®, Rixa GH®, Dapagen®) avant usage en visite.
 - [ ] **Présentation « HTA non contrôlée »** : relire les textes (`src/content/presentations.ts`,
       id `visite`) avant de la montrer à des médecins.
