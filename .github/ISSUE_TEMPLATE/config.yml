@@ -6,3 +6,6 @@ contact_links:
   - name: Ouvrir l'application
     url: https://oumarmaiil-oss.github.io/hemodyssee/
     about: La version en ligne d'Hémodyssée.
+  - name: Écrire à l'auteur par courriel
+    url: mailto:oumarmaiil@gmail.com
+    about: Pour une relecture médicale détaillée, un partenariat ou un usage commercial.
