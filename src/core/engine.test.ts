@@ -129,3 +129,14 @@ test('présentation « HTA non contrôlée » : mono et bithérapie insuffisante
   assert.ok(bi.pas >= 140 || bi.pad >= 90, `bi ${bi.pas}/${bi.pad}`);
   assert.ok(tri.pas < 140 && tri.pad < 90, `tri ${tri.pas}/${tri.pad}`);
 });
+
+test('cohérence fiche ↔ bilan : le traitement proposé n\'est jamais jugé incomplet ni « en trop »', async () => {
+  const { bilan } = await import('../content/evaluation.ts');
+  for (const p of PATHOLOGIES) {
+    const a = [{ id: p.id, s: 0.7 }];
+    const e = calculer(construireTerrain(TERRAIN_NORMAL, a), p.traitement.propose);
+    const b = bilan(a, p.traitement.propose, e);
+    assert.equal(b.manquants.length, 0, `${p.id} : manque ${b.manquants.map((m) => m.texte).join(', ')}`);
+    assert.equal(b.enTrop.length, 0, `${p.id} : en trop ${b.enTrop.map((x) => x.classe).join(', ')}`);
+  }
+});

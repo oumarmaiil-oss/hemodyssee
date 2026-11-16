@@ -33,6 +33,19 @@ Mis à jour le 16 novembre 2026.
 - [ ] **Présentation « HTA non contrôlée »** : relire les textes (`src/content/presentations.ts`,
       id `visite`) avant de la montrer à des médecins.
 
+## Relecture médicale du contenu (16 novembre 2026)
+Relu en entier : 21 fiches de maladies, 13 classes, 9 cas cliniques, bilan des traitements, zones
+anatomiques, visite guidée, étapes de la plaque, 4 présentations. Aucune erreur grave.
+- Corrigé : SAMU 1515 au Sénégal ; insuffisance aortique (chirurgie si FE ≤ 50 %, ESC 2021) ; OAP
+  (oxygène si saturation < 90 %, nitrés si la PA le permet) ; « PA normale < 140/90 » → seuil d'HTA ;
+  sténose carotidienne ≥ 50 % (surtout ≥ 70 %) ; bêtabloquants et asthme (cardiosélectifs possibles) ;
+  clopidogrel (P2Y12) ; HTA = premier facteur de risque modifiable d'AVC ; hypercholestérolémie familiale.
+- Cohérence fiche ↔ bilan : statine forte + ézétimibe proposés pour plaque carotidienne, artériopathie,
+  angor et infarctus (objectif LDL < 1,4) ; le bilan ne juge plus « en trop » ce que la fiche propose ;
+  messages ajoutés (ischémie persistante → revascularisation ; rétrécissement mitral → ballon ou chirurgie ;
+  LDL encore au-dessus de l'objectif → PCSK9). Test automatique ajouté.
+- Reste à valider par les médecins de la phase 1 : formulations, niveau de détail, cas cliniques.
+
 ## Fait le 16 novembre 2026 (organisation globale)
 - Mention permanente « Glissez pour faire tourner · pincez pour zoomer » sur la scène 3D, sur tous les écrans,
   en plus de l'animation à chaque chargement.

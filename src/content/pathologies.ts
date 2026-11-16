@@ -46,7 +46,7 @@ export const PATHOLOGIES: Pathologie[] = [
       3: 'Élévation des résistances vasculaires systémiques (PAM = débit × RVS). La contrainte pariétale systolique augmente (loi de Laplace) et déclenche une hypertrophie concentrique ; la rigidité aortique élargit la pression pulsée par retour précoce des ondes réfléchies.',
     },
     voir: 'Les artérioles se resserrent, l\'aorte devient plus rigide (couleur plus pâle), le ventricule gauche s\'épaissit au fil des mois.',
-    consequences: ['Hypertrophie du ventricule gauche puis insuffisance cardiaque', 'AVC (première cause évitable)', 'Infarctus du myocarde', 'Maladie rénale chronique', 'Atteinte des yeux (rétinopathie)'],
+    consequences: ['Hypertrophie du ventricule gauche puis insuffisance cardiaque', 'AVC (l\'HTA en est le premier facteur de risque modifiable)', 'Infarctus du myocarde', 'Maladie rénale chronique', 'Atteinte des yeux (rétinopathie)'],
     traitement: {
       propose: { iec: 1, ica: 1 },
       texte: 'Bithérapie d\'emblée en un seul comprimé chez la plupart des patients : bloqueur du système rénine-angiotensine (IEC ou ARA II) + inhibiteur calcique ou diurétique thiazidique. Si la PA n\'est pas contrôlée : trithérapie IEC/ARA II + inhibiteur calcique + thiazidique.',
@@ -91,7 +91,7 @@ export const PATHOLOGIES: Pathologie[] = [
     },
     voir: 'Vue Vaisseau (carotide) : plaque jaune qui rétrécit l\'artère. Vue Corps : plaque au cou ; quand elle est serrée et sans antiagrégant, un fragment part vers le cerveau (AVC). Vue Cœur : carotide rétrécie au-dessus du cœur.',
     consequences: ['AVC ischémique', 'Accident ischémique transitoire (AIT)'],
-    traitement: { propose: { statine: 1, aspirine: 1 }, texte: 'Statine à forte intensité + antiagrégant plaquettaire, contrôle de la PA ; chirurgie ou stent pour certaines sténoses serrées.' },
+    traitement: { propose: { statine: 2, ezetimibe: 1, aspirine: 1 }, texte: 'Statine à forte intensité, avec ézétimibe si besoin (objectif LDL < 1,4 mmol/L), + antiagrégant plaquettaire, contrôle de la PA ; chirurgie ou stent pour certaines sténoses serrées.' },
     arret: 'Sans statine, la plaque redevient instable ; sans antiagrégant, le risque de caillot sur la plaque remonte.',
   },
   {
@@ -104,7 +104,7 @@ export const PATHOLOGIES: Pathologie[] = [
     },
     voir: 'Vue Vaisseau (artère de jambe) : plaque qui rétrécit l\'artère. Vue Corps : mollets qui manquent d\'oxygène à la marche (claudication), pied pâle puis sombre au stade critique, IPS abaissé.',
     consequences: ['Douleur à la marche', 'Plaies qui ne guérissent pas, amputation au stade critique', 'Infarctus et AVC associés'],
-    traitement: { propose: { statine: 1, aspirine: 1 }, texte: 'Statine + antiagrégant, marche régulière, arrêt du tabac ; revascularisation si nécessaire.' },
+    traitement: { propose: { statine: 2, ezetimibe: 1, aspirine: 1 }, texte: 'Statine à forte intensité (+ ézétimibe si l\'objectif LDL < 1,4 mmol/L n\'est pas atteint) + antiagrégant, marche régulière, arrêt du tabac ; revascularisation si nécessaire.' },
   },
   // ── Coronaires ──
   {
@@ -117,7 +117,7 @@ export const PATHOLOGIES: Pathologie[] = [
     },
     voir: 'Vue Cœur : plaque jaune sur l\'artère interventriculaire antérieure ; le muscle qu\'elle nourrit devient pâle et violacé (il manque d\'oxygène, mais vit). Vue Vaisseau (coronaire) : rétrécissement d\'environ 70 %. Vue Corps : « angor » au niveau du cœur.',
     consequences: ['Douleur thoracique à l\'effort', 'Risque d\'infarctus si la plaque se rompt'],
-    traitement: { propose: { bb: 1, statine: 1, aspirine: 1 }, texte: 'Bêtabloquant (ralentit le cœur, baisse le besoin en oxygène) + statine + aspirine ; dérivé nitré en cas de crise ; angioplastie si les symptômes persistent.' },
+    traitement: { propose: { bb: 1, statine: 2, ezetimibe: 1, aspirine: 1 }, texte: 'Bêtabloquant (ralentit le cœur, baisse le besoin en oxygène) + statine à forte intensité (+ ézétimibe si besoin) + aspirine ; dérivé nitré en cas de crise ; angioplastie si les symptômes persistent sous traitement.' },
     arret: 'L\'arrêt brutal d\'un bêtabloquant peut provoquer un rebond de tachycardie et des crises d\'angor, voire un infarctus : on diminue toujours progressivement.',
   },
   {
@@ -130,7 +130,7 @@ export const PATHOLOGIES: Pathologie[] = [
     },
     voir: 'Vue Cœur : la paroi antérieure et la pointe du ventricule gauche deviennent gris violacé (muscle mort) et ne bougent plus ; le cœur bat plus vite, l\'ECG montre un sus-décalage du segment ST. Vue Vaisseau (coronaire) : caillot qui bouche l\'artère. Vue Corps : infarctus signalé au cœur.',
     consequences: ['Insuffisance cardiaque', 'Troubles du rythme graves', 'Récidive d\'infarctus'],
-    traitement: { propose: { aspirine: 1, bb: 0.5, iec: 0.5, statine: 2 }, texte: 'Urgence : désobstruer l\'artère (angioplastie). Ensuite : double antiagrégation, bêtabloquant, IEC, statine à forte dose ; antialdostérone et iSGLT2 si la fraction d\'éjection reste basse.' },
+    traitement: { propose: { aspirine: 1, bb: 0.5, iec: 0.5, statine: 2, ezetimibe: 1 }, texte: 'Urgence : désobstruer l\'artère (angioplastie). Ensuite : double antiagrégation, bêtabloquant, IEC, statine à forte dose (+ ézétimibe si l\'objectif LDL n\'est pas atteint) ; antialdostérone et iSGLT2 si la fraction d\'éjection reste basse.' },
     arret: 'Arrêter les antiagrégants trop tôt expose à la thrombose du stent ; arrêter la statine fait remonter le risque de récidive.',
   },
   // ── Muscle cardiaque ──
@@ -181,7 +181,7 @@ export const PATHOLOGIES: Pathologie[] = [
     },
     voir: 'Les poumons se remplissent d\'eau (zones bleutées) ; la pression de l\'oreillette gauche s\'envole.',
     consequences: ['Détresse respiratoire', 'Décès sans traitement rapide'],
-    traitement: { propose: { anse: 2 }, texte: 'Urgence : diurétique de l\'anse par voie veineuse, dérivés nitrés, oxygène, traitement de la cause.' },
+    traitement: { propose: { anse: 2 }, texte: 'Urgence : diurétique de l\'anse par voie veineuse, dérivés nitrés si la PA le permet, oxygène si la saturation est basse (< 90 %), traitement de la cause.' },
   },
   // ── Valves ──
   {
@@ -202,7 +202,7 @@ export const PATHOLOGIES: Pathologie[] = [
     texte: {
       1: 'La valve aortique ne ferme plus bien : une partie du sang éjecté revient dans le cœur. Le cœur doit pomper plus pour compenser et il se dilate.',
       2: 'Le reflux diastolique fait chuter la pression diastolique et surcharge le ventricule en volume : dilatation progressive, pression pulsée large.',
-      3: 'Surcharge mixte volume-pression, pression pulsée élargie (pouls bondissant), dilatation excentrique ; chirurgie si symptômes, FE ≤ 55 % ou dilatation importante.',
+      3: 'Surcharge mixte volume-pression, pression pulsée élargie (pouls bondissant), dilatation excentrique ; chirurgie si symptômes, FE ≤ 50 % ou dilatation importante du ventricule.',
     },
     voir: 'Pendant la diastole, un jet repart de l\'aorte vers le ventricule ; le ventricule gauche grossit.',
     consequences: ['Dilatation puis insuffisance cardiaque'],
@@ -281,7 +281,7 @@ export const PATHOLOGIES: Pathologie[] = [
     },
     voir: 'Vue Corps : une zone du cerveau devient sombre, elle ne reçoit plus de sang. Le caillot vient soit d\'une plaque carotidienne (vue Vaisseau, carotide), soit du cœur en fibrillation atriale.',
     consequences: ['Paralysie, troubles de la parole', 'Handicap, démence', 'Récidive'],
-    traitement: { propose: { statine: 2, aspirine: 1, iec: 1, thiazide: 1 }, texte: 'Urgence : appeler le 15/SAMU (thrombolyse, thrombectomie). Prévention : contrôle de la PA, statine, antiagrégant, ou AOD si l\'AVC vient d\'une FA.' },
+    traitement: { propose: { statine: 2, aspirine: 1, iec: 1, thiazide: 1 }, texte: 'Urgence : appeler le SAMU (1515 au Sénégal, 15 en France) : thrombolyse, thrombectomie. Prévention : contrôle de la PA, statine, antiagrégant, ou AOD si l\'AVC vient d\'une FA.' },
   },
   {
     id: 'irc', nom: 'Maladie rénale chronique', court: 'Reins', famille: 'organes', zones: ['reins'], niveauMin: 2,

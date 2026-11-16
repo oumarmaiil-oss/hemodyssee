@@ -76,7 +76,11 @@ export function bilan(actives: PathoActive[], tr: Traitement, e: Etat): Bilan {
       if (!g.some(has)) manquants.push({ patho: PATHO_PAR_ID[id].court, texte: `${nomsGroupe(g)} : ${r.pourquoi[k]}`, classes: g });
     });
   }
-  if (ids.includes('icfer') && e.pog >= 18) indiques.add('anse');
+  // Classes proposées par les fiches sans être obligatoires : jamais jugées « en trop ».
+  if (ids.some((i) => ['icfer', 'icfep', 'oap', 'rm', 'it'].includes(i))) indiques.add('anse'); // congestion
+  if (ids.includes('ia')) ['iec', 'ara2', 'ica'].forEach((c) => indiques.add(c as ClasseId)); // vasodilatateur en attendant la chirurgie
+  if (ids.includes('avc')) indiques.add('aspirine'); // AVC athéromateux (AOD si FA)
+  if (ids.includes('icfep')) ['iec', 'ara2'].forEach((c) => indiques.add(c as ClasseId)); // contrôle de la PA
   if (ids.includes('dyslip') || tresHaut) indiques.add('ezetimibe');
   if (tension) ['ica', 'thiazide', 'iec', 'ara2', 'mra'].forEach((c) => indiques.add(c as ClasseId));
 
@@ -86,6 +90,9 @@ export function bilan(actives: PathoActive[], tr: Traitement, e: Etat): Bilan {
     remarques.push('Monothérapie : la PA baisse d\'environ 8 à 10 mmHg, souvent insuffisant pour atteindre l\'objectif. Ajouter une 2e classe baisse environ deux fois plus que doubler la dose de la première (effets additifs, moins d\'effets indésirables). C\'est pourquoi les recommandations proposent une bithérapie d\'emblée, de préférence en un seul comprimé.');
   }
   if (has('ica') && (tr.ica ?? 0) >= 2 && !(has('iec') || has('ara2') || has('arni'))) remarques.push('Amlodipine à forte dose sans IEC/ARA II : les œdèmes des chevilles sont fréquents. L\'association avec un IEC les réduit.');
+  if (ids.includes('angor') && has('bb') && e.perfusion.coeur < 0.85) remarques.push('Ischémie persistante malgré le traitement médical : la sténose est serrée. On discute une revascularisation (angioplastie avec stent, ou pontage).');
+  if (ids.includes('rm') && e.pog >= 18) remarques.push('Rétrécissement mitral serré : la congestion persiste sous traitement médical, car l\'obstacle est mécanique. Traitement de référence : dilatation de la valve au ballon (commissurotomie) ou chirurgie.');
+  if (has('statine') && has('ezetimibe') && tresHaut && e.ldl >= 1.4) remarques.push('LDL encore un peu au-dessus de l\'objectif sous statine forte + ézétimibe : c\'est fréquent. Étape suivante possible : inhibiteur de PCSK9 (non simulé ici).');
   if (has('statine') && lipides && e.ldl >= (tresHaut ? 1.4 : 1.8) && !has('ezetimibe')) remarques.push('Objectif de LDL non atteint sous statine : on augmente l\'intensité de la statine (chaque doublement n\'ajoute qu\'environ 6 %), puis on ajoute l\'ézétimibe (environ −20 % de plus).');
 
   // Ce qui est en trop ou déconseillé.

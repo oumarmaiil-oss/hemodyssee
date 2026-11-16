@@ -208,7 +208,7 @@ export const CAS: CasClinique[] = [
         { t: 'Aucun, puisqu\'il n\'a pas de symptôme', pourquoi: 'Non : l\'athérome se construit en silence pendant des années.' },
       ] },
       { q: 'Que proposer ?', options: [
-        { t: 'Mesures hygiéno-diététiques et statine', ok: true, pourquoi: 'LDL ≥ 4,9 mmol/L et antécédent familial : une statine est justifiée.' },
+        { t: 'Mesures hygiéno-diététiques et statine', ok: true, pourquoi: 'LDL ≥ 4,9 mmol/L et antécédent familial précoce : une statine est justifiée, et il faut penser à une hypercholestérolémie familiale (dépistage des apparentés).' },
         { t: 'Rien, à revoir dans 10 ans', pourquoi: 'Non : chaque année d\'exposition compte.' },
         { t: 'De l\'aspirine', pourquoi: 'Non : sans maladie vasculaire, elle n\'est pas recommandée en prévention.' },
         { t: 'Un anticoagulant', pourquoi: 'Non : sans rapport avec le cholestérol.' },
