@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Map, Play, RefreshCcw, RefreshCw, Share2, TrendingUp, X } from 'lucide-react';
 import { apresDelaiEtVoix } from '../core/voix.ts';
 import { AidesDefilement } from './Defilement.tsx';
+import { BandeauInstaller, FenetreInstaller } from './Installer.tsx';
 import { IconeContact, partagerApp, Signalement, WHATSAPP, WHATSAPP_AFFICHE } from './Signalement.tsx';
 import { calculer, fractionAu, evoluer, TERRAIN_NORMAL } from '../core/engine.ts';
 import { Son } from '../core/audio.ts';
@@ -68,6 +69,7 @@ export default function App() {
   const panneau = useRef<HTMLDivElement>(null);
   const [maj, setMaj] = useState(false);
   const [installer, setInstaller] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
+  const [aideInstall, setAideInstall] = useState(false);
   useEffect(() => {
     const surMaj = () => setMaj(true);
     const surInstall = (e: Event) => { e.preventDefault(); setInstaller(e as Event & { prompt: () => Promise<void> }); };
@@ -231,6 +233,7 @@ export default function App() {
           · <a href="mailto:oumarmaiil@gmail.com" className="underline decoration-dotted hover:text-txt">oumarmaiil@gmail.com</a>
           · v{__VERSION__}
           · <button onClick={() => void partagerApp()} className="underline decoration-dotted hover:text-txt">Partager l'application</button>
+          · <button onClick={() => setAideInstall(true)} className="underline decoration-dotted hover:text-txt">Installer</button>
         </p>
         <p>
           Projet ouvert : <a href="https://github.com/oumarmaiil-oss/hemodyssee" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">code source</a> sous licence AGPL-3.0,
@@ -353,6 +356,7 @@ export default function App() {
               </button>
             ))}
           </nav>
+          <BandeauInstaller onOuvrir={() => setAideInstall(true)} />
           {(actives.length > 0 || Object.keys(traitement).length > 0) && (
             <div className="flex items-center gap-2 px-3 py-1.5 border-b border-line bg-sang/8 text-[12px]">
               <span className="w-1.5 h-1.5 rounded-full bg-sang shrink-0" />
@@ -398,6 +402,7 @@ export default function App() {
         `PA ${etatScene.pas}/${etatScene.pad} · FC ${etatScene.fc} · FE ${Math.round(etatScene.fe * 100)} %`,
         `Appareil : ${navigator.userAgent}`, `Écran : ${window.innerWidth}×${window.innerHeight}`,
       ].join('\n')} />}
+      {aideInstall && <FenetreInstaller invite={installer} onInstalle={() => setInstaller(null)} onClose={() => setAideInstall(false)} />}
       {annulation && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 rounded-2xl border border-line bg-panel shadow-2xl px-4 py-2.5 flex items-center gap-3 text-sm fade-in" role="status">
           <RefreshCcw size={15} className="text-accent" /> {annulation.message}
