@@ -11,7 +11,7 @@ Outil pédagogique interactif pour **comprendre et faire comprendre** le cœur, 
 - **Évolution** : sans traitement, traitement suivi, traitement arrêté, sur 5 ans.
 - **Présentations guidées** (HTA, HTA non contrôlée, cholestérol, fibrillation atriale), **9 cas cliniques** corrigés, **fiche récapitulative** imprimable ou en PDF, voix off.
 - **3 niveaux** : Découvrir, Comprendre, Approfondir. Bruits du cœur synthétisés. Fonctionne hors ligne et s'installe sur l'écran d'accueil.
-- **Mode labo** (bouton mallette ou `?labo` à la fin de l'adresse) : gamme commerciale, définie dans `src/content/labo.ts`.
+- **Mode labo** (réservé au délégué) : ouvrir une fois l'adresse avec `?labo` à la fin ; le bouton mallette apparaît alors sur cet appareil (`?public` le retire). Gamme commerciale définie dans `src/content/labo.ts`. Le grand public ne voit jamais de marques.
 
 ## Organisation du code
 - `src/core` : moteur physiologique, horloge du cycle cardiaque, son (sans interface).

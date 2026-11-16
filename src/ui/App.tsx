@@ -53,7 +53,15 @@ export default function App() {
   const [vueEvo, setVueEvo] = useState<VueEvolution | null>(null);
   const [sonOn, setSonOn] = useState(false);
   const [ralenti, setRalenti] = useState(false);
-  const [labo, setLabo] = useState(() => /[?&]labo/.test(location.search) || lire('hemo.labo') === '1');
+  // Mode labo (marques GHPL) : réservé au délégué. Le bouton n'apparaît qu'après une ouverture avec
+  // « ?labo » à la fin de l'adresse (mémorisé sur cet appareil) ; « ?public » retire cet accès.
+  // Le grand public ne voit donc jamais de marques : la publicité des médicaments auprès du public est encadrée.
+  const [accesLabo] = useState(() => {
+    if (/[?&]public/.test(location.search)) { ecrire('hemo.labo.acces', '0'); ecrire('hemo.labo', '0'); return false; }
+    if (/[?&]labo/.test(location.search)) { ecrire('hemo.labo.acces', '1'); return true; }
+    return lire('hemo.labo.acces') === '1';
+  });
+  const [labo, setLabo] = useState(() => accesLabo && (/[?&]labo/.test(location.search) || lire('hemo.labo') === '1'));
   const son = useRef(new Son()).current;
   const [signaler, setSignaler] = useState(false);
   const [maj, setMaj] = useState(false);
@@ -202,7 +210,8 @@ export default function App() {
             <button className={vue === 'corps' ? 'actif' : ''} onClick={() => setVue('corps')}>Corps</button>
             <button className={vue === 'vaisseau' ? 'actif' : ''} onClick={() => setVue('vaisseau')}>Vaisseau</button>
           </div>
-          <button onClick={() => setLabo((v) => !v)} className={`btn-icone ml-auto lg:ml-0 ${labo ? 'actif' : ''}`} title="Mode labo (gamme commerciale)" aria-label="Mode labo"><Briefcase size={16} /></button>
+          <span className="ml-auto lg:ml-0" />
+          {accesLabo && <button onClick={() => setLabo((v) => !v)} className={`btn-icone ${labo ? 'actif' : ''}`} title="Mode labo (gamme commerciale)" aria-label="Mode labo"><Briefcase size={16} /></button>}
           {installer && <button onClick={() => { void installer.prompt(); setInstaller(null); }} className="btn-icone actif" title="Installer l'application" aria-label="Installer l'application"><Download size={16} /></button>}
           <button onClick={() => void partagerApp()} className="btn-icone" title="Partager l'application" aria-label="Partager l'application"><Share2 size={16} /></button>
           <button onClick={() => setSignaler(true)} className="h-[34px] rounded-[10px] px-2.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-[#25d366] border border-[#25d366]/40 bg-[#25d366]/10 active:scale-95 transition-transform touch-manipulation" title="Contacter l'auteur, signaler un problème ou suggérer" aria-label="Contacter ou signaler"><IconeContact size={16} /> Contact</button>
