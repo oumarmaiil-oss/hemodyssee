@@ -1,0 +1,529 @@
+<title>Glucodyssée</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Mise en page : un instrument de mesure. La courbe de glycémie (comme un capteur en continu) d'abord,
+   les chiffres clés ensuite, puis les réglages en cartes qui s'empilent sur téléphone. */
+:root {
+  --fond: #f6f4ef; --surface: #ffffff; --surface2: #f0ede6; --trait: #e2ddd2;
+  --texte: #1d1a16; --doux: #6b645a; --miel: #c77d0a; --miel-doux: #f5e3c2;
+  --cible: #2f9e6b; --cible-fond: rgba(47,158,107,.10); --alerte: #d63b3b; --alerte-fond: rgba(214,59,59,.10);
+  --insuline: #3b6fd6; --fantome: #a39b8f;
+  --f-titre: 'Fraunces', Georgia, serif; --f-texte: 'Plus Jakarta Sans', system-ui, sans-serif; --f-chiffre: 'IBM Plex Mono', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --fond: #12100d; --surface: #1b1814; --surface2: #24201a; --trait: #332d25;
+  --texte: #f1ece4; --doux: #a59d90; --miel: #f0a832; --miel-doux: #3a2c14;
+  --cible: #4cc38a; --cible-fond: rgba(76,195,138,.12); --alerte: #ff6b6b; --alerte-fond: rgba(255,107,107,.13);
+  --insuline: #7aa2ff; --fantome: #6f675b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --fond: #12100d; --surface: #1b1814; --surface2: #24201a; --trait: #332d25;
+  --texte: #f1ece4; --doux: #a59d90; --miel: #f0a832; --miel-doux: #3a2c14;
+  --cible: #4cc38a; --cible-fond: rgba(76,195,138,.12); --alerte: #ff6b6b; --alerte-fond: rgba(255,107,107,.13);
+  --insuline: #7aa2ff; --fantome: #6f675b; color-scheme: dark }
+* { box-sizing: border-box; }
+body { background: var(--fond); color: var(--texte); font-family: var(--f-texte); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 40px; }
+.page { max-width: 1080px; margin: 0 auto; display: grid; gap: 14px; }
+header { display: grid; gap: 4px; }
+h1 { font-family: var(--f-titre); font-size: clamp(26px, 6vw, 36px); line-height: 1.1; margin: 0; text-wrap: balance; }
+h1 span { color: var(--miel); }
+.sous { color: var(--doux); max-width: 62ch; margin: 0; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--miel); }
+.carte { background: var(--surface); border: 1px solid var(--trait); border-radius: 16px; padding: 14px; min-width: 0; }
+.titre-carte { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--doux); margin: 0 0 8px; }
+.graph-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; }
+.legende { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--doux); }
+.legende i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+svg { display: block; width: 100%; height: auto; }
+.chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.chiffre { background: var(--surface2); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+.chiffre .l { font-size: 11px; color: var(--doux); font-weight: 600; }
+.chiffre .v { font-family: var(--f-chiffre); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.chiffre .u { font-size: 11px; color: var(--doux); }
+.chiffre.ok .v { color: var(--cible); } .chiffre.mal .v { color: var(--alerte); } .chiffre.miel .v { color: var(--miel); }
+.alertes { display: flex; flex-wrap: wrap; gap: 6px; min-height: 0; }
+.puce-alerte { font-size: 12.5px; font-weight: 700; border-radius: 999px; padding: 5px 12px; }
+.puce-alerte.rouge { background: var(--alerte-fond); color: var(--alerte); }
+.puce-alerte.verte { background: var(--cible-fond); color: var(--cible); }
+.grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+.scenarios { display: flex; flex-wrap: wrap; gap: 6px; }
+button, select, input { font: inherit; color: inherit; }
+.btn { border: 1px solid var(--trait); background: var(--surface2); border-radius: 10px; padding: 7px 11px; font-size: 13px; font-weight: 600; cursor: pointer; min-height: 38px; text-align: left; }
+.btn:hover { border-color: var(--miel); }
+.btn.actif { background: var(--miel-doux); border-color: var(--miel); color: var(--texte); }
+.btn:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--miel); outline-offset: 2px; }
+.choix { display: flex; flex-wrap: wrap; gap: 6px; }
+.ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--trait); }
+.ligne:first-of-type { border-top: 0; }
+.ligne .nom { font-weight: 700; font-size: 13.5px; }
+.ligne .ou { font-size: 12px; color: var(--doux); }
+.seg { display: inline-flex; border: 1px solid var(--trait); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 7px 9px; min-width: 38px; min-height: 36px; font-size: 12.5px; font-weight: 600; cursor: pointer; color: var(--doux); }
+.seg button.actif { background: var(--miel); color: #fff; }
+.repas { display: grid; grid-template-columns: auto 1fr auto auto; gap: 6px; align-items: center; margin-top: 6px; }
+.repas input, .repas select { background: var(--surface2); border: 1px solid var(--trait); border-radius: 8px; padding: 6px 8px; min-height: 36px; width: 100%; font-size: 16px; }
+.repas .x { border: 0; background: transparent; color: var(--doux); cursor: pointer; font-size: 18px; min-width: 36px; min-height: 36px; }
+.interrupteur { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 0; }
+.interrupteur input { width: 20px; height: 20px; accent-color: var(--miel); }
+.note { font-size: 12.5px; color: var(--doux); margin: 6px 0 0; }
+.explication { font-size: 13.5px; margin: 0; max-width: 70ch; }
+footer { font-size: 12px; color: var(--doux); display: grid; gap: 4px; }
+footer a { color: var(--miel); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <header>
+    <span class="badge">Prototype du moteur · bêta</span>
+    <h1>Gluc<span>odyssée</span></h1>
+    <p class="sous">Le voyage du sucre : choisissez un patient, ses repas et ses traitements, et regardez sa glycémie sur 24 heures, comme sur un capteur de glucose en continu.</p>
+  </header>
+
+  <section class="carte" aria-labelledby="t-scen">
+    <h2 class="titre-carte" id="t-scen">Scénarios à essayer</h2>
+    <div class="scenarios" id="scenarios"></div>
+    <p class="explication" id="explication" style="margin-top:10px"></p>
+  </section>
+
+  <section class="carte" aria-labelledby="t-courbe">
+    <div class="graph-tete">
+      <h2 class="titre-carte" id="t-courbe" style="margin:0">Glycémie sur 24 heures</h2>
+      <div class="legende">
+        <span><i style="background:var(--miel)"></i>glycémie</span>
+        <span id="leg-fantome"><i style="background:var(--fantome)"></i>sans aucun traitement</span>
+        <span><i style="background:var(--cible-fond);height:8px;border:1px solid var(--cible)"></i>cible 0,70-1,80 g/L</span>
+        <span><i style="background:var(--insuline)"></i>insuline dans le sang</span>
+      </div>
+    </div>
+    <svg id="courbe" viewBox="0 0 720 300" role="img" aria-label="Courbe de glycémie sur 24 heures"></svg>
+    <svg id="insuline" viewBox="0 0 720 70" role="img" aria-label="Insuline dans le sang sur 24 heures"></svg>
+  </section>
+
+  <section class="chiffres" id="chiffres" aria-label="Chiffres clés de la journée"></section>
+  <div class="alertes" id="alertes" aria-live="polite"></div>
+
+  <div class="grille">
+    <section class="carte" aria-labelledby="t-patient">
+      <h2 class="titre-carte" id="t-patient">Patient</h2>
+      <div class="choix" id="profils"></div>
+      <label class="interrupteur"><input type="checkbox" id="ir"> Rein malade (insuffisance rénale)</label>
+      <h2 class="titre-carte" style="margin-top:12px">Journée</h2>
+      <div class="choix" id="journees"></div>
+      <div id="repas"></div>
+      <button class="btn" id="ajout-repas" style="margin-top:8px">+ Ajouter un repas</button>
+      <label class="interrupteur"><input type="checkbox" id="effort"> Effort physique : 45 min de marche rapide à 16 h</label>
+    </section>
+
+    <section class="carte" aria-labelledby="t-trait">
+      <h2 class="titre-carte" id="t-trait">Comprimés et injections (hors insuline)</h2>
+      <div id="traitements"></div>
+      <label class="interrupteur" style="margin-left:2px"><input type="checkbox" id="glib"> Le sulfamide est du glibenclamide (plus puissant, plus long)</label>
+    </section>
+
+    <section class="carte" aria-labelledby="t-ins">
+      <h2 class="titre-carte" id="t-ins">Insuline</h2>
+      <div class="choix" id="schemas"></div>
+      <div id="injections"></div>
+      <p class="note">Doses de départ pour un adulte de 70 kg. Les injections rapides se font 5 minutes avant chaque repas.</p>
+    </section>
+
+    <section class="carte" aria-labelledby="t-ans" id="bloc-ans">
+      <h2 class="titre-carte" id="t-ans">Sur 10 ans (diabète de type 2)</h2>
+      <svg id="ans" viewBox="0 0 360 170" role="img" aria-label="HbA1c estimée sur 10 ans"></svg>
+      <p class="note">Le pancréas s'épuise peu à peu (environ 6 % de fonction en moins par an dans ce modèle) : sans traitement, l'HbA1c monte d'année en année.</p>
+    </section>
+  </div>
+
+  <footer>
+    <p style="margin:0"><b>Prototype pédagogique.</b> Modèle physiologique simplifié et calibré sur des repères cliniques (10 tests automatiques). Il ne remplace ni l'avis médical ni le RCP des médicaments, et doit encore être validé par des professionnels de santé.</p>
+    <p style="margin:0">Dr O. Sow · Dakar · même famille que <a href="https://oumarmaiil-oss.github.io/hemodyssee/" target="_blank" rel="noopener">Hémodyssée</a>.</p>
+  </footer>
+</div>
+
+<script>
+/**
+ * Moteur de glycémie (prototype pour Glucodyssée) : modèle physiologique simplifié, sans interface.
+ * Pas de temps : 1 minute. Glycémie interne en mg/dL (affichage en g/L = mg/dL ÷ 100).
+ * Inspiré des modèles de référence (modèle minimal de Bergman, absorption des repas de Dalla Man),
+ * fortement simplifié et calibré sur des repères cliniques (voir les tests).
+ *
+ * Flux en mg/kg/min ; adulte de 70 kg.
+ *   dG/dt = (PGE + Ra − Ucerveau − Uinsuline − Urein − Ueffort) / Vg
+ *   PGE  : production de glucose par le foie, freinée par l'insuline (portale), relancée par l'hypoglycémie
+ *   Ra   : apparition du glucose des repas (estomac → intestin → sang)
+ *   Uinsuline : captation par les muscles et la graisse, proportionnelle à l'insuline active × sensibilité
+ *   Urein : glucose dans les urines au-dessus du seuil rénal (abaissé par les iSGLT2)
+ */
+
+const VG = 1.7;          // dL/kg : volume de distribution du glucose
+const PGE_B = 2.0;              // mg/kg/min : production hépatique basale du sujet sain
+const N_INS = 0.1;              // /min : élimination de l'insuline plasmatique
+const VI_ML = 10000;            // mL : volume de distribution de l'insuline
+const BIO_SC = 0.8;             // biodisponibilité de l'insuline sous-cutanée
+const FACT_PORTE = 2.0;         // le foie voit 2 × plus d'insuline endogène que la périphérie
+const KH = 0.035;               // sensibilité du foie à l'insuline
+const KU = 0.1124;              // captation insulino-dépendante (maximale), saturable
+const K50 = 80;                 // µU/mL : insuline donnant la moitié de l'effet maximal
+const SG = 0.003;               // « efficacité du glucose » : captation sans insuline, proportionnelle à la glycémie
+const SMAX = 17.0;              // sécrétion maximale (µU/mL/min) pour une fonction bêta = 1
+const HILL_N = 5, HILL_K = 164; // réponse des cellules bêta au glucose (sigmoïde)
+const INC = 1.5;                // effet incrétine (GLP-1, GIP) lié au repas
+const K_VIDANGE = 0.018, K_ABS = 0.03, F_ABS = 0.9; // absorption des repas
+const SEUIL_REIN = 180, K_REIN = 0.012;               // seuil rénal du glucose
+
+/** Profils de patients (fonction bêta, sensibilité périphérique et hépatique, effet incrétine). */
+const PROFILS = {
+  sain:        { nom: 'Sujet sain',            beta: 1.0,  si: 1.0,  sl: 1.0,  inc: 1.0 },
+  prediabete:  { nom: 'Prédiabète',            beta: 0.6,  si: 0.55, sl: 0.6,  inc: 0.8 },
+  t2leger:     { nom: 'Diabète de type 2 (début)',   beta: 0.42, si: 0.45, sl: 0.5,  inc: 0.6 },
+  t2:          { nom: 'Diabète de type 2',     beta: 0.24, si: 0.36, sl: 0.42, inc: 0.5 },
+  t2evolue:    { nom: 'Diabète de type 2 évolué (pancréas épuisé)', beta: 0.12, si: 0.35, sl: 0.4, inc: 0.4 },
+  t1:          { nom: 'Diabète de type 1',     beta: 0.0,  si: 1.0,  sl: 1.0,  inc: 0.0 },
+};
+
+/** Insulines : constante d'absorption sous-cutanée (pic ≈ 1/k minutes) ou débit continu (analogue lent). */
+const INSULINES = {
+  rapideAnalogue: { nom: 'Analogue rapide (aspart, lispro)', k: 1 / 55 },
+  rapideHumaine:  { nom: 'Insuline humaine rapide (ordinaire)', k: 1 / 120 },
+  nph:            { nom: 'Insuline humaine intermédiaire (NPH)', k: 1 / 300 },
+  premix30:       { nom: 'Insuline humaine mélange 30/70', melange: [['rapideHumaine', 0.3], ['nph', 0.7]] },
+  glargine:       { nom: 'Analogue lent (glargine)', continu: true },
+};
+
+/** Effet d'une dose relative (0,5 = demi-dose, 1 = standard, 2 = forte) : rendement décroissant. */
+const eff = (d) => (!d ? 0 : d <= 1 ? d : 1 + 0.35 * (d - 1));
+
+/** Repas par défaut : rythme sénégalais (repas principal à midi). Heures en heures décimales, glucides en g. */
+const REPAS_DEFAUT = [
+  { h: 7.5, g: 50, nom: 'Petit-déjeuner (pain, café au lait)' },
+  { h: 13.5, g: 100, nom: 'Déjeuner (thiéboudienne)' },
+  { h: 20.5, g: 70, nom: 'Dîner' },
+];
+
+/**
+ * Simule `jours` journées identiques (la dernière sert aux résultats : régime établi).
+ * traitements : { metformine, sulfamide, glibenclamide (booléen : sulfamide ancien plus puissant et plus long), idpp4, aglp1, isglt2 } en doses relatives
+ * injections  : [{ h, type, u }] (u = unités) ; une insuline lente « glargine » s'injecte une fois par jour
+ * efforts     : [{ h, duree (min), intensite (0-1) }]
+ */
+function simuler({ profil = 'sain', repas = REPAS_DEFAUT, traitements = {}, injections = [], efforts = [], jours = 2, poids = 70, insuffisanceRenale = false } = {}) {
+  const p = typeof profil === 'string' ? PROFILS[profil] : profil;
+  const tr = traitements;
+  const metf = 1 - 0.35 * eff(tr.metformine);                 // ↓ production hépatique
+  const metfSi = 1 + 0.25 * eff(tr.metformine);               // ↑ la sensibilité musculaire
+  const ir = insuffisanceRenale;   // rein malade : sulfamides et insuline éliminés plus lentement, iSGLT2 moins efficaces sur la glycémie
+  const su = eff(tr.sulfamide) * (tr.glibenclamide ? 1.4 : 1) * (ir ? 1.3 : 1);   // sécrétion forcée, indépendante du glucose (glibenclamide : plus forte et plus longue)
+  const dpp4 = eff(tr.idpp4), glp1 = eff(tr.aglp1), sglt2 = eff(tr.isglt2);
+  const kVid = K_VIDANGE * (1 - 0.35 * Math.min(1, glp1));        // aGLP-1 : vidange gastrique ralentie
+  const seuil = sglt2 ? SEUIL_REIN - 110 * Math.min(1, sglt2) - 10 * Math.max(0, sglt2 - 1) : SEUIL_REIN;
+  const kRein = (sglt2 ? 0.008 : K_REIN) * (ir ? 0.4 : 1);
+  const nIns = N_INS * (ir ? 0.75 : 1);
+  const glucagonFrein = 1 - 0.15 * Math.min(1, glp1) - 0.1 * Math.min(1, dpp4); // moins de glucagon (si glycémie > 0,90)
+
+  const N = jours * 1440;
+  let G = 90, Ien = 8, Iex = 0, Ieff = 8, Ih = 16, Qsto = 0, Qgut = 0;
+  const depots = [];              // dépôts sous-cutanés [d1, d2, k]
+  let continuLente = 0;           // débit continu d'analogue lent (U/min), régime établi
+  for (const inj of injections) if (INSULINES[inj.type]?.continu) continuLente += inj.u / 1440;
+  const sortie = { t: [], G: [], I: [], Ra: [], urine: 0, effortActif: [] };
+  const debutJour = (jours - 1) * 1440;
+  let rein = 0;
+
+  for (let m = 0; m < N; m++) {
+    const hm = (m % 1440) / 60;
+    // Repas et injections programmés à cette minute
+    for (const r of repas) if (Math.round(r.h * 60) === m % 1440) Qsto += (r.g * 1000) / poids;
+    for (const inj of injections) {
+      if (Math.round(inj.h * 60) !== m % 1440) continue;
+      const def = INSULINES[inj.type];
+      if (!def || def.continu) continue;
+      const parts = def.melange ?? [[inj.type, 1]];
+      for (const [t, frac] of parts) depots.push([inj.u * frac, 0, INSULINES[t].k]);
+    }
+    // Absorption digestive
+    const vid = kVid * Qsto, abs = K_ABS * Qgut;
+    Qsto -= vid; Qgut += vid - abs;
+    const Ra = F_ABS * abs;
+    // Insuline sous-cutanée → plasma
+    let entreeEx = continuLente * BIO_SC * 1e6 / VI_ML;
+    for (const d of depots) {
+      const a = d[2] * d[0], b = d[2] * d[1];
+      d[0] -= a; d[1] += a - b;
+      entreeEx += b * BIO_SC * 1e6 / VI_ML;
+    }
+    // Effort physique
+    let effort = 0;
+    for (const e of efforts) { const t0 = Math.round(e.h * 60); const mm = m % 1440; if (mm >= t0 && mm < t0 + e.duree) effort = Math.max(effort, e.intensite ?? 0.6); }
+    const apresEffort = efforts.some((e) => { const t0 = Math.round(e.h * 60); const mm = m % 1440; return mm >= t0 && mm < t0 + e.duree + 180; });
+    const si = p.si * metfSi * (apresEffort ? 1.25 : 1);
+    // Sécrétion d'insuline endogène
+    const hill = G ** HILL_N / (G ** HILL_N + HILL_K ** HILL_N);
+    const incretine = INC * p.inc * (Ra / (Ra + 3)) * (1 + 1.2 * dpp4) + 0.5 * dpp4 * p.inc + 1.2 * glp1;
+    // Sulfamide : sécrétion forcée même quand la glycémie est basse (d'où le risque d'hypoglycémie)
+    let S = p.beta * SMAX * hill * (1 + incretine) * (1 + 0.5 * su) + p.beta * SMAX * 0.22 * su;
+    if (S < 0) S = 0;
+    // Insuline plasmatique, active (périphérie) et hépatique
+    Ien += S - nIns * Ien;
+    Iex += entreeEx - nIns * Iex;
+    const Iper = Ien + Iex;
+    Ieff += (Iper - Ieff) / 25;
+    Ih += (FACT_PORTE * Ien + Iex - Ih) / 15;
+    // Flux de glucose (mg/kg/min)
+    const contre = 1 + 1.8 * Math.max(0, (70 - G) / 70);          // contre-régulation (glucagon, adrénaline) sous 0,70 g/L
+    const frein = G > 90 ? glucagonFrein : 1;
+    const PGE = PGE_B * metf * 1.75 * Math.exp(-KH * p.sl * Ih) * contre * frein;
+    const Ucerveau = 0.9 * G / (G + 10);           // cerveau, globules rouges : sans insuline
+    const Ueff = SG * G;
+    const Uins = KU * si * (Ieff / (Ieff + K50)) * G;
+    const Ueffort = effort * 2.0 * G / (G + 20);
+    const Urein = Math.min(3.0, Math.max(0, G - seuil) * kRein); // plafond : capacité de filtration
+    G += (PGE + Ra - Ucerveau - Ueff - Uins - Urein - Ueffort) / VG;
+    if (G < 20) G = 20;
+    if (m >= debutJour) {
+      sortie.t.push((m - debutJour) / 60); sortie.G.push(G); sortie.I.push(Iper); sortie.Ra.push(Ra);
+      rein += Urein * poids;      // mg/min
+    }
+  }
+  sortie.urine = rein / 1000;    // g/jour
+  sortie.stats = statistiques(sortie.G);
+  return sortie;
+}
+
+/** Statistiques de la journée : moyenne, HbA1c estimée (formule ADAG), temps dans la cible, hypoglycémies. */
+function statistiques(Gs) {
+  const n = Gs.length;
+  const moy = Gs.reduce((a, b) => a + b, 0) / n;
+  const dans = Gs.filter((g) => g >= 70 && g <= 180).length / n;
+  const sous70 = Gs.filter((g) => g < 70).length / n, sous54 = Gs.filter((g) => g < 54).length / n;
+  const sur180 = Gs.filter((g) => g > 180).length / n;
+  const aJeun = Gs[Math.round(7.25 * 60)] ?? Gs[0];
+  return { moyenne: moy, hba1c: (moy + 46.7) / 28.7, tir: dans, tbr70: sous70, tbr54: sous54, tar180: sur180, min: Math.min(...Gs), max: Math.max(...Gs), aJeun };
+}
+
+/**
+ * Évolution sur plusieurs années (vue « années ») : dans le type 2, la fonction des cellules bêta baisse
+ * d'environ 4 à 6 % par an (ordre de grandeur de l'étude UKPDS ; 6 % par défaut pour rendre l'évolution lisible) ; l'HbA1c de chaque année est celle d'une journée type.
+ * Retourne aussi un indice d'exposition au sucre (somme des années × excès d'HbA1c au-dessus de 6 %),
+ * qui sert à faire progresser les jauges de complications (yeux, reins, nerfs, cœur).
+ */
+function evolution({ profil = 't2', traitements = {}, injections = [], repas = REPAS_DEFAUT, annees = 10, perteBeta = 0.06 } = {}) {
+  const base = typeof profil === 'string' ? PROFILS[profil] : profil;
+  const res = []; let exposition = 0;
+  for (let a = 0; a <= annees; a++) {
+    const p = { ...base, beta: base.beta * Math.pow(1 - (base.beta > 0 && base.beta < 1 ? perteBeta : 0), a) };
+    const s = simuler({ profil: p, traitements, injections, repas }).stats;
+    if (a > 0) exposition += Math.max(0, s.hba1c - 6);
+    res.push({ annee: a, hba1c: s.hba1c, aJeun: s.aJeun, exposition });
+  }
+  return res;
+}
+
+</script>
+<script>
+const $ = (s) => document.querySelector(s);
+const c = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => tout()); } catch (e) {}
+try { new MutationObserver(() => tout()).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); } catch (e) {}
+const nf = (x, d = 2) => x.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const TRAITEMENTS = [
+  ['metformine', 'Metformine', 'Foie : produit moins de sucre'],
+  ['sulfamide', 'Sulfamide (gliclazide)', 'Pancréas : force la libération d\'insuline'],
+  ['idpp4', 'Inhibiteur de la DPP-4', 'Intestin → pancréas : prolonge les incrétines'],
+  ['aglp1', 'Analogue du GLP-1', 'Pancréas, estomac, cerveau'],
+  ['isglt2', 'Inhibiteur du SGLT2', 'Rein : le sucre part dans les urines'],
+];
+const DOSES = [[0, '0'], [0.5, '½'], [1, '1'], [2, '2']];
+const JOURNEES = {
+  type: { nom: 'Journée type', repas: [{ h: 7.5, g: 50 }, { h: 13.5, g: 100 }, { h: 20.5, g: 70 }] },
+  sauteDej: { nom: 'Déjeuner sauté', repas: [{ h: 7.5, g: 50 }, { h: 20.5, g: 70 }] },
+  ramadan: { nom: 'Ramadan', repas: [{ h: 5, g: 70 }, { h: 19.5, g: 90 }, { h: 22, g: 40 }] },
+};
+const NOMS_REPAS = (h) => h < 6 ? 'Sahur' : h < 11 ? 'Petit-déjeuner' : h < 16 ? 'Déjeuner' : h < 21 ? (h >= 19 && h < 20 ? 'Ndogu (rupture du jeûne)' : 'Dîner') : 'Collation';
+const PROFILS_UI = [['sain', 'Sain'], ['prediabete', 'Prédiabète'], ['t2leger', 'Type 2 (début)'], ['t2', 'Type 2'], ['t2evolue', 'Type 2 évolué'], ['t1', 'Type 1']];
+
+function injectionsPour(schema, repas, profil) {
+  if (schema === 'glargine') return [{ h: 21, type: 'glargine', u: profil === 't1' ? 20 : 16 }];
+  if (schema === 'basalBolus') return [{ h: 21, type: 'glargine', u: 20 }, ...repas.map((r) => ({ h: Math.round((r.h - 0.1) * 60) / 60, type: 'rapideAnalogue', u: Math.max(1, Math.round(r.g / 12.5)) }))];
+  if (schema === 'premix') return [{ h: 7.3, type: 'premix30', u: 18 }, { h: 20.3, type: 'premix30', u: 12 }];
+  return [];
+}
+const SCHEMAS = [['aucune', 'Aucune'], ['glargine', 'Lente seule (glargine)'], ['basalBolus', 'Basale + rapides aux repas'], ['premix', 'Mélange 30/70 matin et soir']];
+
+let etat = { profil: 't2', ir: false, journee: 'type', repas: JOURNEES.type.repas.map((r) => ({ ...r })), effort: false,
+  tr: { metformine: 0, sulfamide: 0, idpp4: 0, aglp1: 0, isglt2: 0 }, glib: false, schema: 'aucune', injections: [], scenario: 'type2' };
+
+const SCENARIOS = [
+  ['normal', 'Le voyage normal', 'Chez le sujet sain, la glycémie monte après chaque repas puis redescend en 2 à 3 heures : l\'insuline fait entrer le sucre dans les cellules. Elle reste entre 0,70 et 1,80 g/L toute la journée.',
+    () => ({ profil: 'sain', journee: 'type', tr: {}, schema: 'aucune' })],
+  ['type2', 'Type 2 découvert', 'Le pancréas produit encore de l\'insuline, mais les cellules y répondent mal (résistance) et le pancréas s\'épuise. Glycémie à jeun au-dessus de 1,26 g/L, pics après les repas : souvent sans aucun symptôme.',
+    () => ({ profil: 't2', journee: 'type', tr: {}, schema: 'aucune' })],
+  ['metf', 'Metformine, puis une 2e classe', 'La metformine freine la production de sucre par le foie : la glycémie du matin baisse. Ajoutez ensuite un analogue du GLP-1 ou un inhibiteur du SGLT2 : chaque classe agit à un endroit différent et leurs effets s\'additionnent.',
+    () => ({ profil: 't2', journee: 'type', tr: { metformine: 1 }, schema: 'aucune' })],
+  ['sulfa', 'Sulfamide et repas sauté', 'Le glibenclamide force le pancréas à libérer de l\'insuline même quand la glycémie est basse. Sans déjeuner, la glycémie descend sous 0,70 g/L : hypoglycémie. Essayez le gliclazide (décochez le glibenclamide) puis un inhibiteur de la DPP-4 à la place.',
+    () => ({ profil: 't2leger', journee: 'sauteDej', tr: { sulfamide: 1 }, glib: true, schema: 'aucune' })],
+  ['ramadan', 'Ramadan', 'Repas au sahur (5 h) et au ndogu (19 h 30). Sous glibenclamide, la journée de jeûne passe en hypoglycémie. Les recommandations (IDF-DAR 2021) conseillent d\'éviter le glibenclamide, de préférer un traitement à faible risque et de réduire les doses.',
+    () => ({ profil: 't2leger', journee: 'ramadan', tr: { sulfamide: 1 }, glib: true, schema: 'aucune' })],
+  ['t1', 'Type 1 : basale + rapides', 'Plus de cellules bêta, donc plus d\'insuline : il faut la remplacer. Une insuline lente couvre la nuit et les périodes entre les repas, une rapide couvre chaque repas.',
+    () => ({ profil: 't1', journee: 'type', tr: {}, schema: 'basalBolus' })],
+  ['t1oubli', 'Type 1 : oubli du bolus de midi', 'Sans l\'injection rapide du déjeuner, le sucre du repas reste dans le sang : la glycémie dépasse 3 g/L l\'après-midi. Sans aucune insuline (choisissez « Aucune »), c\'est l\'acidocétose.',
+    () => ({ profil: 't1', journee: 'type', tr: {}, schema: 'basalBolus', retirerBolusMidi: true })],
+  ['t1effort', 'Type 1 : effort sans collation', 'L\'effort fait entrer le sucre dans les muscles, même avec peu d\'insuline, et augmente la sensibilité pendant quelques heures : risque d\'hypoglycémie. On prend une collation ou on réduit la dose avant l\'effort.',
+    () => ({ profil: 't1', journee: 'type', tr: {}, schema: 'basalBolus', effort: true })],
+  ['rein', 'Rein malade et sulfamide', 'Un rein malade élimine moins bien les sulfamides et l\'insuline : ils s\'accumulent et l\'hypoglycémie devient profonde. Les inhibiteurs du SGLT2 font aussi moins baisser la glycémie (mais protègent toujours le rein et le cœur).',
+    () => ({ profil: 't2leger', journee: 'sauteDej', tr: { sulfamide: 1 }, glib: true, schema: 'aucune', ir: true })],
+];
+
+function appliquerScenario(id) {
+  const s = SCENARIOS.find((x) => x[0] === id); if (!s) return;
+  const v = s[3]();
+  etat.scenario = id; etat.profil = v.profil; etat.journee = v.journee;
+  etat.repas = JOURNEES[v.journee].repas.map((r) => ({ ...r }));
+  etat.tr = { metformine: 0, sulfamide: 0, idpp4: 0, aglp1: 0, isglt2: 0, ...v.tr };
+  etat.glib = !!v.glib; etat.ir = !!v.ir; etat.effort = !!v.effort; etat.schema = v.schema;
+  etat.injections = injectionsPour(v.schema, etat.repas, etat.profil);
+  if (v.retirerBolusMidi) etat.injections = etat.injections.filter((i) => !(i.type === 'rapideAnalogue' && i.h > 12 && i.h < 15));
+  $('#explication').textContent = s[2];
+  tout();
+}
+
+function args(sansTraitement = false) {
+  return {
+    profil: etat.profil, insuffisanceRenale: etat.ir,
+    repas: etat.repas.filter((r) => r.g > 0).map((r) => ({ h: r.h, g: r.g })),
+    efforts: etat.effort ? [{ h: 16, duree: 45, intensite: 0.7 }] : [],
+    traitements: sansTraitement ? {} : { ...etat.tr, glibenclamide: etat.glib },
+    injections: sansTraitement ? [] : etat.injections,
+  };
+}
+
+/* ---------- Rendu ---------- */
+function rendreChoix() {
+  $('#scenarios').innerHTML = SCENARIOS.map(([id, nom]) => `<button class="btn ${etat.scenario === id ? 'actif' : ''}" data-scen="${id}">${nom}</button>`).join('');
+  $('#profils').innerHTML = PROFILS_UI.map(([id, nom]) => `<button class="btn ${etat.profil === id ? 'actif' : ''}" data-profil="${id}">${nom}</button>`).join('');
+  $('#journees').innerHTML = Object.entries(JOURNEES).map(([id, j]) => `<button class="btn ${etat.journee === id ? 'actif' : ''}" data-journee="${id}">${j.nom}</button>`).join('');
+  const heures = Array.from({ length: 48 }, (_, k) => k / 2);
+  $('#repas').innerHTML = etat.repas.map((r, i) => `<div class="repas">
+      <span style="font-size:12.5px;font-weight:600;min-width:7.5em">${NOMS_REPAS(r.h)}</span>
+      <select id="rh${i}" data-repas-h="${i}" aria-label="Heure du repas">${heures.map((h) => `<option value="${h}" ${Math.abs(h - r.h) < 0.01 ? 'selected' : ''}>${String(Math.floor(h)).padStart(2, '0')} h ${h % 1 ? '30' : '00'}</option>`).join('')}</select>
+      <span style="display:flex;align-items:center;gap:4px"><input id="rg${i}" data-repas-g="${i}" type="number" min="0" max="250" step="5" value="${r.g}" aria-label="Glucides en grammes" style="width:5.2em"> <span class="note" style="margin:0">g</span></span>
+      <button class="x" data-repas-x="${i}" aria-label="Retirer ce repas">×</button></div>`).join('');
+  $('#traitements').innerHTML = TRAITEMENTS.map(([id, nom, ou]) => `<div class="ligne">
+      <div><div class="nom">${id === 'sulfamide' && etat.glib ? 'Sulfamide (glibenclamide)' : nom}</div><div class="ou">${ou}</div></div>
+      <div class="seg" role="group" aria-label="Dose de ${nom}">${DOSES.map(([v, l]) => `<button class="${(etat.tr[id] || 0) === v ? 'actif' : ''}" data-tr="${id}" data-dose="${v}" aria-pressed="${(etat.tr[id] || 0) === v}">${l}</button>`).join('')}</div></div>`).join('');
+  $('#schemas').innerHTML = SCHEMAS.map(([id, nom]) => `<button class="btn ${etat.schema === id ? 'actif' : ''}" data-schema="${id}">${nom}</button>`).join('');
+  $('#injections').innerHTML = etat.injections.map((inj, i) => `<div class="repas" style="grid-template-columns:1fr auto">
+      <span style="font-size:12.5px"><b>${String(Math.floor(inj.h)).padStart(2, '0')} h ${String(Math.round((inj.h % 1) * 60)).padStart(2, '0')}</b> · ${INSULINES[inj.type].nom}</span>
+      <span style="display:flex;align-items:center;gap:4px"><input id="iu${i}" data-inj="${i}" type="number" min="0" max="80" step="1" value="${inj.u}" aria-label="Unités" style="width:4.6em"> <span class="note" style="margin:0">U</span></span></div>`).join('');
+  $('#ir').checked = etat.ir; $('#effort').checked = etat.effort; $('#glib').checked = etat.glib;
+}
+
+function courbe(sim, fantome) {
+  // Dessin à la taille réelle de l'écran : les textes gardent leur taille lisible sur téléphone.
+  const W = Math.max(300, Math.round($('#courbe').getBoundingClientRect().width || 720)), H = W < 520 ? 230 : 300, g = { l: 40, r: 8, t: 14, b: 26 };
+  $('#courbe').setAttribute('viewBox', `0 0 ${W} ${H}`); $('#insuline').setAttribute('viewBox', `0 0 ${W} 64`);
+  const max = Math.max(...sim.G) / 100;
+  const yMax = [2.5, 3, 4, 6, 9].find((v) => v >= max + 0.2) ?? 9;
+  const X = (h) => g.l + (h / 24) * (W - g.l - g.r);
+  const Y = (v) => g.t + (1 - v / yMax) * (H - g.t - g.b);
+  const ticks = yMax <= 3 ? [0, 0.5, 1, 1.5, 2, 2.5, 3].filter((v) => v <= yMax) : yMax <= 4 ? [0, 1, 2, 3, 4] : yMax <= 6 ? [0, 2, 4, 6] : [0, 3, 6, 9];
+  const chemin = (G) => G.filter((_, i) => i % 4 === 0).map((v, k) => `${k ? 'L' : 'M'}${X((k * 4) / 60).toFixed(1)},${Y(Math.min(v / 100, yMax)).toFixed(1)}`).join('');
+  let s = '';
+  s += `<rect x="${g.l}" y="${Y(1.8)}" width="${W - g.l - g.r}" height="${Y(0.7) - Y(1.8)}" fill="${c('--cible-fond')}"/>`;
+  s += `<line x1="${g.l}" x2="${W - g.r}" y1="${Y(0.7)}" y2="${Y(0.7)}" stroke="${c('--alerte')}" stroke-dasharray="4 4" stroke-width="1"/>`;
+  s += `<text x="${W - g.r}" y="${Y(0.7) + 12}" text-anchor="end" font-size="10.5" fill="${c('--alerte')}">hypoglycémie &lt; 0,70</text>`;
+  for (const v of ticks) s += `<line x1="${g.l}" x2="${W - g.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${c('--trait')}" stroke-width="1"/><text x="${g.l - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="${c('--doux')}" font-family="${c('--f-chiffre')}">${nf(v, v % 1 ? 1 : 0)}</text>`;
+  for (let h = 0; h <= 24; h += (W < 520 ? 6 : 3)) s += `<text x="${X(h)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="${c('--doux')}" font-family="${c('--f-chiffre')}">${h} h</text>`;
+  s += `<text x="${g.l}" y="10" font-size="10.5" fill="${c('--doux')}">g/L</text>`;
+  for (const r of etat.repas.filter((r) => r.g > 0)) s += `<g><line x1="${X(r.h)}" x2="${X(r.h)}" y1="${g.t}" y2="${H - g.b}" stroke="${c('--miel')}" stroke-opacity=".25"/><circle cx="${X(r.h)}" cy="${g.t + 6}" r="5" fill="${c('--miel')}"/><text x="${X(r.h) + 8}" y="${g.t + 10}" font-size="10.5" fill="${c('--doux')}">${r.g} g</text></g>`;
+  if (fantome) s += `<path d="${chemin(fantome.G)}" fill="none" stroke="${c('--fantome')}" stroke-width="2" stroke-dasharray="5 4"/>`;
+  s += `<path d="${chemin(sim.G)}" fill="none" stroke="${c('--miel')}" stroke-width="3" stroke-linejoin="round"/>`;
+  $('#courbe').innerHTML = s;
+  // insuline
+  const Hi = 64, iMax = Math.max(40, ...sim.I) * 1.1;
+  const Yi = (v) => 6 + (1 - v / iMax) * (Hi - 12);
+  const ci = sim.I.filter((_, i) => i % 4 === 0).map((v, k) => `${k ? 'L' : 'M'}${X((k * 4) / 60).toFixed(1)},${Yi(v).toFixed(1)}`).join('');
+  let si = `<path d="${ci} L${X(24)},${Yi(0)} L${X(0)},${Yi(0)} Z" fill="${c('--insuline')}" fill-opacity=".14"/><path d="${ci}" fill="none" stroke="${c('--insuline')}" stroke-width="2"/>`;
+  si += `<text x="${g.l + 4}" y="14" font-size="10.5" fill="${c('--insuline')}">insuline dans le sang</text>`;
+  for (const inj of etat.injections) if (INSULINES[inj.type] && !INSULINES[inj.type].continu) si += `<path d="M${X(inj.h)},${Hi - 2} l-4,-8 h8 z" fill="${c('--insuline')}"/>`;
+  $('#insuline').innerHTML = si;
+}
+
+function chiffres(sim) {
+  const s = sim.stats;
+  const mm = (v) => nf(v / 18.0182, 1);
+  const cartes = [
+    ['Glycémie à jeun (7 h 15)', nf(s.aJeun / 100), `g/L · ${mm(s.aJeun)} mmol/L`, s.aJeun < 70 ? 'mal' : s.aJeun < 126 ? 'ok' : 'mal'],
+    ['Glycémie moyenne', nf(s.moyenne / 100), 'g/L', 'miel'],
+    ['HbA1c estimée', nf(s.hba1c, 1) + ' %', s.tbr70 > 0.04 ? 'basse à cause des hypoglycémies : piège !' : 'si chaque jour ressemblait à celui-ci', s.tbr70 > 0.04 ? 'mal' : s.hba1c < 7 ? 'ok' : 'mal'],
+    ['Temps dans la cible', Math.round(s.tir * 100) + ' %', 'entre 0,70 et 1,80 g/L (objectif > 70 %)', s.tir >= 0.7 ? 'ok' : 'mal'],
+    ['Temps en hypoglycémie', Math.round(s.tbr70 * 100) + ' %', 'sous 0,70 g/L (objectif < 4 %)', s.tbr70 > 0.04 ? 'mal' : 'ok'],
+    ['Sucre dans les urines', Math.round(sim.urine) + ' g', 'par jour', sim.urine > 20 ? 'miel' : ''],
+  ];
+  $('#chiffres').innerHTML = cartes.map(([l, v, u, c]) => `<div class="chiffre ${c}"><div class="l">${l}</div><div class="v">${v}</div><div class="u">${u}</div></div>`).join('');
+  const al = [];
+  if (s.min < 54) al.push(['rouge', `Hypoglycémie de niveau 2 (minimum ${nf(s.min / 100)} g/L) : 15 g de sucre rapide, contrôle 15 min plus tard`]);
+  else if (s.min < 70) al.push(['rouge', `Hypoglycémie de niveau 1 (minimum ${nf(s.min / 100)} g/L)`]);
+  if (etat.profil === 't1' && !etat.injections.length) al.push(['rouge', 'Aucune insuline dans un diabète de type 1 : risque d\'acidocétose (urgence)']);
+  if (s.max > 300) al.push(['rouge', `Hyperglycémie majeure (jusqu'à ${nf(s.max / 100)} g/L)`]);
+  if (!al.length && s.tir >= 0.7 && s.min >= 70) al.push(['verte', 'Journée équilibrée : dans la cible, sans hypoglycémie']);
+  $('#alertes').innerHTML = al.map(([c, t]) => `<span class="puce-alerte ${c}">${t}</span>`).join('');
+}
+
+function ans() {
+  const t2 = ['prediabete', 't2leger', 't2', 't2evolue'].includes(etat.profil);
+  $('#bloc-ans').hidden = !t2;
+  if (!t2) return;
+  const a = args(), sans = evolution({ profil: etat.profil, repas: a.repas, annees: 10 });
+  const avec = evolution({ profil: etat.profil, repas: a.repas, annees: 10, traitements: a.traitements, injections: a.injections });
+  const W = 360, H = 170, g = { l: 34, r: 10, t: 10, b: 24 };
+  const tous = [...sans, ...avec].map((x) => x.hba1c);
+  const hmax = Math.max(8, Math.ceil(Math.max(...tous) + 0.5)), hmin = Math.min(5, Math.floor(Math.min(...tous) - 0.3));
+  const X = (k) => g.l + (k / 10) * (W - g.l - g.r), Y = (v) => g.t + (1 - (v - hmin) / (hmax - hmin)) * (H - g.t - g.b);
+  let s = '';
+  for (let v = hmin; v <= hmax; v++) s += `<line x1="${g.l}" x2="${W - g.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${c('--trait')}"/><text x="${g.l - 5}" y="${Y(v) + 4}" text-anchor="end" font-size="10.5" fill="${c('--doux')}" font-family="${c('--f-chiffre')}">${v} %</text>`;
+  s += `<line x1="${g.l}" x2="${W - g.r}" y1="${Y(7)}" y2="${Y(7)}" stroke="${c('--cible')}" stroke-dasharray="4 4"/><text x="${W - g.r}" y="${Y(7) - 4}" text-anchor="end" font-size="10.5" fill="${c('--cible')}">objectif 7 %</text>`;
+  for (let k = 0; k <= 10; k += 2) s += `<text x="${X(k)}" y="${H - 6}" text-anchor="middle" font-size="10.5" fill="${c('--doux')}">${k === 0 ? 'auj.' : k + ' ans'}</text>`;
+  const p = (arr) => arr.map((x, k) => `${k ? 'L' : 'M'}${X(k).toFixed(1)},${Y(Math.min(hmax, x.hba1c)).toFixed(1)}`).join('');
+  s += `<path d="${p(sans)}" fill="none" stroke="${c('--fantome')}" stroke-width="2" stroke-dasharray="5 4"/>`;
+  s += `<path d="${p(avec)}" fill="none" stroke="${c('--miel')}" stroke-width="3"/>`;
+  s += `<text x="${X(10)}" y="${Y(Math.min(hmax, avec[10].hba1c)) + 14}" text-anchor="end" font-size="10.5" fill="${c('--miel')}">avec le traitement choisi ${nf(avec[10].hba1c, 1)} %</text>`;
+  s += `<text x="${X(10)}" y="${Y(Math.min(hmax, sans[10].hba1c)) - 6}" text-anchor="end" font-size="10.5" fill="${c('--doux')}">sans traitement ${nf(sans[10].hba1c, 1)} %</text>`;
+  $('#ans').innerHTML = s;
+}
+
+function tout() {
+  rendreChoix();
+  const sim = simuler(args());
+  const aTraitement = Object.values(etat.tr).some((d) => d > 0) || etat.injections.length > 0;
+  const fantome = aTraitement ? simuler(args(true)) : null;
+  $('#leg-fantome').hidden = !fantome;
+  courbe(sim, fantome); chiffres(sim); ans();
+}
+
+/* ---------- Interactions ---------- */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.scen) return appliquerScenario(b.dataset.scen);
+  if (b.dataset.profil) { etat.profil = b.dataset.profil; etat.scenario = ''; etat.injections = injectionsPour(etat.schema, etat.repas, etat.profil); return tout(); }
+  if (b.dataset.journee) { etat.journee = b.dataset.journee; etat.repas = JOURNEES[b.dataset.journee].repas.map((r) => ({ ...r })); etat.injections = injectionsPour(etat.schema, etat.repas, etat.profil); etat.scenario = ''; return tout(); }
+  if (b.dataset.tr) { etat.tr[b.dataset.tr] = Number(b.dataset.dose); etat.scenario = ''; return tout(); }
+  if (b.dataset.schema) { etat.schema = b.dataset.schema; etat.injections = injectionsPour(etat.schema, etat.repas, etat.profil); etat.scenario = ''; return tout(); }
+  if (b.dataset.repasX) { etat.repas.splice(Number(b.dataset.repasX), 1); etat.journee = ''; return tout(); }
+  if (b.id === 'ajout-repas') { etat.repas.push({ h: 17, g: 30 }); etat.repas.sort((a, c) => a.h - c.h); etat.journee = ''; return tout(); }
+});
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  if (t.id === 'ir') etat.ir = t.checked;
+  else if (t.id === 'effort') etat.effort = t.checked;
+  else if (t.id === 'glib') etat.glib = t.checked;
+  else if (t.dataset.repasH) { etat.repas[Number(t.dataset.repasH)].h = Number(t.value); etat.repas.sort((a, c) => a.h - c.h); etat.journee = ''; }
+  else if (t.dataset.repasG) { etat.repas[Number(t.dataset.repasG)].g = Math.max(0, Math.min(250, Number(t.value) || 0)); etat.journee = ''; }
+  else if (t.dataset.inj) { etat.injections[Number(t.dataset.inj)].u = Math.max(0, Math.min(80, Number(t.value) || 0)); }
+  else return;
+  etat.scenario = ''; tout();
+});
+appliquerScenario('type2');
+let minuterie; addEventListener('resize', () => { clearTimeout(minuterie); minuterie = setTimeout(tout, 150); });
+</script>
