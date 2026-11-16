@@ -42,6 +42,8 @@ input[type="range"] { accent-color: var(--color-sang); width: 100%; }
   }
   .btn-icone.actif { color: #fff; background: rgba(224,65,78,.25); border-color: rgba(224,65,78,.6); }
   .btn-outil { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 9px; border-radius: 10px; background: rgba(7,10,18,.82); border: 1px solid var(--color-line); color: var(--color-muted); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  @media (max-width: 639px) { .btn-outil { padding: 0 7px; gap: 4px; } }
+  @media (max-width: 379px) { .btn-outil { padding: 0 4px; } .seg button { padding: 5px 8px; } }
   .btn-outil:hover { color: var(--color-txt); border-color: rgba(148,163,184,.35); }
   .btn-outil.actif { color: #fff; background: rgba(224,65,78,.25); border-color: rgba(224,65,78,.6); }
   .puce { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--color-line); background: var(--color-card); font-size: 12.5px; font-weight: 600; color: var(--color-muted); }

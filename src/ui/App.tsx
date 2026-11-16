@@ -1,6 +1,6 @@
 /** Application Hémodyssée : état global, mise en page, en-tête et accueil. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Map, Play, RefreshCw, Share2, Snail, TrendingUp, Volume2, VolumeX, X } from 'lucide-react';
+import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Map, Play, RefreshCw, Share2, TrendingUp, X } from 'lucide-react';
 import { IconeContact, partagerApp, Signalement, WHATSAPP, WHATSAPP_AFFICHE } from './Signalement.tsx';
 import { calculer, fractionAu, evoluer, TERRAIN_NORMAL } from '../core/engine.ts';
 import { Son } from '../core/audio.ts';
@@ -204,12 +204,10 @@ export default function App() {
             <button className={vue === 'corps' ? 'actif' : ''} onClick={() => setVue('corps')}>Corps</button>
             <button className={vue === 'vaisseau' ? 'actif' : ''} onClick={() => setVue('vaisseau')}>Vaisseau</button>
           </div>
-          <button onClick={basculerSon} className={`btn-icone ml-auto lg:ml-0 ${sonOn ? 'actif' : ''}`} title="Bruits du cœur" aria-label="Activer les bruits du cœur">{sonOn ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
-          <button onClick={() => setRalenti((v) => !v)} className={`btn-icone hidden sm:grid ${ralenti ? 'actif' : ''}`} title="Ralenti" aria-label="Ralenti"><Snail size={16} /></button>
-          <button onClick={() => setLabo((v) => !v)} className={`btn-icone ${labo ? 'actif' : ''}`} title="Mode labo (gamme commerciale)" aria-label="Mode labo"><Briefcase size={16} /></button>
+          <button onClick={() => setLabo((v) => !v)} className={`btn-icone ml-auto lg:ml-0 ${labo ? 'actif' : ''}`} title="Mode labo (gamme commerciale)" aria-label="Mode labo"><Briefcase size={16} /></button>
           {installer && <button onClick={() => { void installer.prompt(); setInstaller(null); }} className="btn-icone actif" title="Installer l'application" aria-label="Installer l'application"><Download size={16} /></button>}
           <button onClick={() => void partagerApp()} className="btn-icone" title="Partager l'application" aria-label="Partager l'application"><Share2 size={16} /></button>
-          <button onClick={() => setSignaler(true)} className="btn-icone !text-[#25d366] !border-[#25d366]/40 !bg-[#25d366]/10" title="Contacter l'auteur, signaler un problème ou suggérer" aria-label="Contacter ou signaler"><IconeContact size={17} /></button>
+          <button onClick={() => setSignaler(true)} className="h-[34px] rounded-[10px] px-2.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-[#25d366] border border-[#25d366]/40 bg-[#25d366]/10 active:scale-95 transition-transform touch-manipulation" title="Contacter l'auteur, signaler un problème ou suggérer" aria-label="Contacter ou signaler"><IconeContact size={16} /> Contact</button>
         </div>
         <div className="lg:hidden px-2 pb-1.5 grid sm:grid-cols-2 gap-1.5">
           <div className="seg w-full justify-between">{NIVEAUX.map((x) => <button key={x.n} className={`flex-1 ${niveau === x.n ? 'actif' : ''}`} onClick={() => choisirNiveau(x.n)}>{x.nom}</button>)}</div>
@@ -226,7 +224,7 @@ export default function App() {
       <main className="flex-1 min-h-0 max-w-[1600px] w-full mx-auto p-2 sm:p-4 grid gap-2 lg:gap-3 grid-rows-[auto_minmax(0,1fr)] grid-cols-[minmax(0,1fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="flex flex-col gap-2 lg:gap-3 min-w-0">
           <div className={`${tour !== null || seq !== null || pres || lectLoc ? 'h-[50dvh]' : 'h-[34dvh]'} transition-[height] duration-300 min-h-[220px] lg:min-h-[480px] ${vueEvo && seq === null ? 'lg:h-[calc(100vh-246px)]' : 'lg:h-[calc(100vh-190px)]'}`}>
-            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} legende={legende} onVue={setVue}
+            <Stage vue={vue} etat={etatScene} niveau={niveau} zone={zone} onZone={onZone} son={son} ralenti={ralenti} sonOn={sonOn} onSon={basculerSon} onRalenti={() => setRalenti((v) => !v)} legende={legende} onVue={setVue}
               onVoyage3D={() => { setSeq(null); setPres(null); setVue('3d'); setTourPause(false); setTour(0); }}
               tourActif={tour !== null}
               lecture={tour !== null ? { titre: 'Voyage du sang', texte: TOUR[tour].etape, detail: DETAILS_VISITE[TOUR[tour].z]?.[niveau === 1 ? 0 : 1], index: tour, total: TOUR.length, pause: tourPause }

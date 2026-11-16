@@ -1,6 +1,6 @@
 /** Scène principale : cœur 3D ou voyage du sang 2D, animés par une horloge commune. */
 import { useEffect, useRef, useState } from 'react';
-import { Activity, Camera, Circle, Layers, Pause, Speech, Play, RotateCcw, Scissors, SkipBack, SkipForward, Square, Tag, X } from 'lucide-react';
+import { Activity, Camera, Circle, Layers, Pause, Speech, Play, RotateCcw, Scissors, SkipBack, SkipForward, Snail, Square, Tag, Volume2, VolumeX, X } from 'lucide-react';
 import { Horloge, NOMS_PHASES, type Phase } from '../core/clock.ts';
 import type { Son } from '../core/audio.ts';
 import type { Etat, Niveau } from '../core/types.ts';
@@ -46,6 +46,9 @@ interface Props {
   onZone: (z: ZoneId | null) => void;
   son: Son;
   ralenti: boolean;
+  sonOn: boolean;
+  onSon: () => void;
+  onRalenti: () => void;
   legende: string;
   onVue: (v: Vue) => void;
   onVoyage3D: () => void;
@@ -65,7 +68,7 @@ interface Props {
 
 export interface Lecture { titre: string; texte: string; detail?: string; index: number; total: number; pause: boolean }
 
-export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, onVue, onVoyage3D, tourActif, lecture: lectureApp, onLecture: onLectureApp, onLectureLocale, sitePatho, demandeEtapes = 0, peutRetour, onRetour }: Props) {
+export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, sonOn, onSon, onRalenti, legende, onVue, onVoyage3D, tourActif, lecture: lectureApp, onLecture: onLectureApp, onLectureLocale, sitePatho, demandeEtapes = 0, peutRetour, onRetour }: Props) {
   const hote = useRef<HTMLDivElement>(null);
   const rendu = useRef<Rendu | null>(null);
   const [site, setSite] = useState<Site>('coronaire');
@@ -363,6 +366,12 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
       {!pret && !erreur3D && <div className="absolute inset-0 grid place-items-center text-muted text-sm">Préparation de la scène…</div>}
       {erreur3D && <div className="absolute inset-0 grid place-items-center text-center p-6 text-muted text-sm">La 3D n'est pas disponible sur cet appareil.<br />Utilisez la vue 2D.</div>}
 
+      {/* Son et ralenti : sur la scène, coin haut gauche, sous la barre d'outils (loin de l'ECG) */}
+      <div className="absolute z-20 left-2 top-12 lg:top-24 flex flex-col gap-1.5">
+        <button onClick={onSon} className={`btn-icone !w-8 !h-8 ${sonOn ? 'actif' : ''}`} title={sonOn ? 'Couper les bruits du cœur' : 'Écouter les bruits du cœur'} aria-label={sonOn ? 'Couper les bruits du cœur' : 'Activer les bruits du cœur'} aria-pressed={sonOn}>{sonOn ? <Volume2 size={15} /> : <VolumeX size={15} />}</button>
+        <button onClick={onRalenti} className={`btn-icone !w-8 !h-8 ${ralenti ? 'actif' : ''}`} title="Ralenti" aria-label="Ralenti" aria-pressed={ralenti}><Snail size={15} /></button>
+      </div>
+
       {/* Phase du cycle */}
       {niveau >= 2 && (
         <div className="absolute bottom-2.5 left-2 lg:bottom-auto lg:top-14 flex items-center gap-1.5 rounded-full bg-ink/75 border border-line px-2 py-0.5 text-[10.5px] lg:text-xs text-muted pointer-events-none max-w-[38%] lg:max-w-[60%] truncate">
@@ -399,7 +408,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
       )}
 
       {/* Barre d'outils : une seule ligne, qui défile horizontalement sur téléphone */}
-      <div className="absolute z-20 top-2 left-2 right-2 flex gap-1.5 overflow-x-auto scroll-thin lg:justify-end lg:overflow-visible [&::-webkit-scrollbar]:hidden">
+      <div className="absolute z-20 top-2 left-2 right-2 flex gap-1 sm:gap-1.5 overflow-x-auto scroll-thin lg:justify-end lg:overflow-visible [&::-webkit-scrollbar]:hidden">
         {(vue === '3d' || vue === 'coeur2d') && (
           <div className="seg shrink-0">
             <button className={vue === 'coeur2d' ? 'actif' : ''} onClick={() => onVue('coeur2d')}>2D</button>
@@ -411,10 +420,10 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
         )}
         {peutRetour && <button onClick={onRetour} className="btn-outil shrink-0" aria-label="Revenir à la zone précédente">← Retour</button>}
         {avecTraces && <button onClick={() => setTraces((m) => (m === 'aucun' ? 'ecg' : m === 'ecg' && niveau >= 2 ? 'tout' : 'aucun'))} className={`btn-outil shrink-0 ${traces !== 'aucun' ? 'actif' : ''}`} aria-label="Afficher l'ECG et les pressions"><Activity size={14} /> {traces === 'tout' ? 'ECG + pressions' : 'ECG'}</button>}
-        <button onClick={() => setEtiquettes((v) => !v)} className={`btn-outil shrink-0 ${etiquettes ? 'actif' : ''}`} aria-label="Afficher les noms des structures"><Tag size={14} /> Noms</button>
-        <button onClick={photo} className="btn-outil shrink-0" aria-label="Exporter une photo"><Camera size={14} /> Photo</button>
-        <button onClick={video} className={`btn-outil shrink-0 ${enreg ? 'actif' : ''}`} aria-label="Enregistrer une vidéo">{enreg ? <Square size={13} /> : <Circle size={14} />} {enreg ? 'Stop' : 'Vidéo'}</button>
-        <button onClick={() => { onZone(null); setCoupe('aucune'); const r = rendu.current as Coeur3D | null; if (r && 'vueInitiale' in r) r.vueInitiale(); else rendu.current?.focus(null); }} className="btn-outil shrink-0" aria-label="Revenir à la vue d'ensemble"><RotateCcw size={14} /> Tout voir</button>
+        <button onClick={() => setEtiquettes((v) => !v)} className={`btn-outil shrink-0 ${etiquettes ? 'actif' : ''}`} aria-label="Afficher les noms des structures" title="Noms"><Tag size={14} /><span className="hidden sm:inline">Noms</span></button>
+        <button onClick={photo} className="btn-outil shrink-0" aria-label="Exporter une photo" title="Photo"><Camera size={14} /><span className="hidden sm:inline">Photo</span></button>
+        <button onClick={video} className={`btn-outil shrink-0 ${enreg ? 'actif' : ''}`} aria-label="Enregistrer une vidéo">{enreg ? <Square size={13} /> : <Circle size={14} />}<span className={enreg ? '' : 'hidden sm:inline'}>{enreg ? 'Stop' : 'Vidéo'}</span></button>
+        <button onClick={() => { onZone(null); setCoupe('aucune'); const r = rendu.current as Coeur3D | null; if (r && 'vueInitiale' in r) r.vueInitiale(); else rendu.current?.focus(null); }} className="btn-outil shrink-0" aria-label="Revenir à la vue d'ensemble" title="Tout voir"><RotateCcw size={14} /><span className="hidden sm:inline">Tout voir</span></button>
       </div>
       {vue === '3d' && pret && outils && !tourActif && (
         <div className="absolute z-20 top-12 right-2 w-52 rounded-xl bg-ink/90 border border-line p-2.5 space-y-2 text-xs fade-in">
