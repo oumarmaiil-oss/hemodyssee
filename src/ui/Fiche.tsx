@@ -45,7 +45,7 @@ export function FicheImpression({ actives, traitement, etat, sans, labo }: { act
           <ul>{evaluerPathologie(a.id, actives, etat, traitement).map((p) => <li key={p.texte}>{p.ok ? '✓' : '✗'} {p.texte}</li>)}</ul>
         </div>
       ))}
-      <p className="pied">Support pédagogique : simulation simplifiée à partir des grands essais, qui ne remplace pas un avis médical. Hémodyssée · Dr O. Sow · oumarmaiil-oss.github.io/hemodyssee</p>
+      <p className="pied">Support pédagogique : simulation simplifiée à partir des grands essais, qui ne remplace pas un avis médical. Hémodyssée · Dr Oumar Sow · oumarmaiil-oss.github.io/hemodyssee · contenu sous licence CC BY-NC-SA 4.0</p>
     </div>,
     document.body,
   );

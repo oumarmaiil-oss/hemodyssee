@@ -1,0 +1,24 @@
+name: Bug
+description: Quelque chose ne fonctionne pas (affichage, bouton, son, vidéo…).
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: quoi
+    attributes:
+      label: Ce qui se passe
+      description: Et ce que vous attendiez à la place. Une capture d'écran aide beaucoup.
+    validations:
+      required: true
+  - type: textarea
+    id: etapes
+    attributes:
+      label: Comment le reproduire
+      placeholder: "1. Ouvrir… 2. Toucher… 3. …"
+  - type: input
+    id: appareil
+    attributes:
+      label: Appareil et navigateur
+      placeholder: "Ex. : Samsung Galaxy A14, Chrome ; iPhone 12, Safari"
+    validations:
+      required: true

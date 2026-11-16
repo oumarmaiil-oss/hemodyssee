@@ -307,7 +307,7 @@ export default function App() {
       </main>
 
       <footer className="text-center text-[11px] text-dim pb-4 pt-1 px-4 space-y-1">
-        <p>Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments. Tous droits réservés.</p>
+        <p>Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</p>
         <p className="flex flex-wrap items-center justify-center gap-x-1.5">
           © 2026 Hémodyssée · Dr Oumar Sow · Dakar
           <svg viewBox="0 0 30 20" width="18" height="12" aria-label="Drapeau du Sénégal" role="img" className="inline rounded-[2px]">
@@ -317,6 +317,11 @@ export default function App() {
           · <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">WhatsApp {WHATSAPP_AFFICHE}</a>
           · v{__VERSION__}
           · <button onClick={() => void partagerApp()} className="underline decoration-dotted hover:text-txt">Partager l'application</button>
+        </p>
+        <p>
+          Projet ouvert : <a href="https://github.com/oumarmaiil-oss/hemodyssee" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">code source</a> sous licence AGPL-3.0,
+          contenu sous <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.fr" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">CC BY-NC-SA 4.0</a>.
+          {' '}<a href="https://github.com/oumarmaiil-oss/hemodyssee/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer" className="underline decoration-dotted hover:text-txt">Contribuer</a>
         </p>
         <details className="max-w-xl mx-auto text-left">
           <summary className="cursor-pointer text-center py-1 hover:text-txt">Sources des chiffres</summary>
