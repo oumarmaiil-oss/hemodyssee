@@ -1,6 +1,6 @@
 /** Application Hémodyssée : état global, mise en page, en-tête et accueil. */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Info, Map, MessageCircle, RefreshCw, Snail, TrendingUp, Volume2, VolumeX, X } from 'lucide-react';
+import { Box, BookOpen, Briefcase, Compass, Download, HeartPulse, Info, Map, MessageCircle, Play, RefreshCw, Snail, TrendingUp, Volume2, VolumeX, X } from 'lucide-react';
 import { Signalement, WHATSAPP } from './Signalement.tsx';
 import { calculer, fractionAu, evoluer, TERRAIN_NORMAL } from '../core/engine.ts';
 import { Son } from '../core/audio.ts';
@@ -304,7 +304,7 @@ export default function App() {
 
       <footer className="hidden lg:block text-center text-[11px] text-dim pb-4 px-4">Hémodyssée · Outil pédagogique : il ne remplace pas l'avis d'un médecin ni le résumé des caractéristiques des médicaments.</footer>
 
-      {accueil && <Accueil onChoix={choisirNiveau} />}
+      {accueil && <Accueil onChoix={choisirNiveau} onDemo={() => { choisirNiveau(1); setOnglet('maladies'); lancerPresentation('hta'); }} />}
       {apropos && <APropos onClose={() => setApropos(false)} labo={labo} />}
       {signaler && <Signalement onClose={() => setSignaler(false)} contexte={[
         `Version : ${__VERSION__}`, `Vue : ${vue} · niveau ${niveau}${zone ? ` · zone ${zone}` : ''}`,
@@ -324,7 +324,7 @@ export default function App() {
   );
 }
 
-function Accueil({ onChoix }: { onChoix: (n: Niveau) => void }) {
+function Accueil({ onChoix, onDemo }: { onChoix: (n: Niveau) => void; onDemo: () => void }) {
   return (
     <div className="fixed inset-0 z-50 bg-ink/85 backdrop-blur-sm grid place-items-center p-4" role="dialog" aria-modal="true" aria-label="Bienvenue">
       <div className="max-w-2xl w-full rounded-3xl border border-line bg-panel p-6 sm:p-8 fade-in">
@@ -333,7 +333,11 @@ function Accueil({ onChoix }: { onChoix: (n: Niveau) => void }) {
           <h1 className="font-display text-3xl sm:text-4xl mt-4">Hémodyssée</h1>
           <p className="text-muted mt-2">Suivez le sang à travers le cœur et les organes, déréglez la machine avec une maladie, puis voyez ce que chaque traitement change, aujourd'hui et dans 5 ans.</p>
         </div>
-        <div className="mt-6 grid sm:grid-cols-3 gap-3">
+        <button onClick={onDemo} className="mt-6 w-full rounded-2xl bg-sang hover:brightness-110 text-white font-bold py-3.5 inline-flex items-center justify-center gap-2 shadow-[0_6px_24px_rgba(224,65,78,.45)]">
+          <Play size={16} fill="currentColor" /> Première visite ? Regardez la démo (1 min)
+        </button>
+        <p className="text-[12px] text-muted text-center mt-4">ou choisissez votre niveau :</p>
+        <div className="mt-2 grid sm:grid-cols-3 gap-3">
           {NIVEAUX.map((x) => (
             <button key={x.n} onClick={() => onChoix(x.n)} className="text-left carte p-4 hover:border-sang/60 hover:bg-card2 transition">
               <x.icone size={22} className="text-sang" />
@@ -356,10 +360,11 @@ function APropos({ onClose, labo }: { onClose: () => void; labo: boolean }) {
         <p>Hémodyssée est un outil visuel pour comprendre et faire comprendre la circulation, les maladies cardiovasculaires (HTA, dyslipidémie, valvulopathies, troubles du rythme, insuffisance cardiaque…) et l'action de chaque classe de médicaments.</p>
         <div><div className="titre-section mb-1">Comment l'utiliser</div>
           <ol className="list-decimal pl-5 space-y-1 text-muted">
-            <li><b className="text-txt">Explorer</b> : suivez le voyage du sang et cliquez sur une zone pour zoomer.</li>
-            <li><b className="text-txt">Maladies</b> : simulez une ou plusieurs maladies et observez les conséquences.</li>
-            <li><b className="text-txt">Traitements</b> : ajoutez une classe à la fois pour voir son effet, ou appliquez le traitement proposé.</li>
-            <li><b className="text-txt">Évolution</b> : comparez sans traitement, traitement suivi et traitement arrêté sur 5 ans.</li>
+            <li><b className="text-txt">Pour commencer</b> : lancez une présentation guidée (onglet Maladies et traitements) ; tout s'enchaîne seul.</li>
+            <li><b className="text-txt">Explorer</b> : suivez le voyage du sang et touchez une zone pour zoomer. Quatre vues : Cœur (2D ou 3D), Voyage, Corps, Vaisseau.</li>
+            <li><b className="text-txt">Maladies et traitements</b> : simulez une maladie, regardez-la dans les trois vues, puis appliquez le traitement proposé ou une classe à la fois.</li>
+            <li><b className="text-txt">Évolution</b> : sans traitement, traitement suivi, traitement arrêté, sur 5 ans.</li>
+            <li><b className="text-txt">S'entraîner</b> : 9 cas cliniques corrigés ; fiche récapitulative en PDF.</li>
           </ol>
         </div>
         <div><div className="titre-section mb-1">Sur quoi reposent les chiffres</div>
@@ -381,9 +386,10 @@ function APropos({ onClose, labo }: { onClose: () => void; labo: boolean }) {
             <li>• Pour la supprimer : appui long sur l'icône → Supprimer, comme n'importe quelle application.</li>
           </ul>
         </div>
-        <div><div className="titre-section mb-1">Exporter</div><p className="text-muted">Boutons appareil photo et enregistrement sur la scène : image PNG, ou vidéo (MP4 ou WebM selon le navigateur) avec les bruits du cœur si le son est activé.</p></div>
+        <div><div className="titre-section mb-1">Exporter</div><p className="text-muted">Boutons Photo et Vidéo sur la scène : image PNG, ou vidéo (MP4 ou WebM selon le navigateur) avec les bruits du cœur si le son est activé. Sur téléphone, un bouton « Partager » envoie directement vers WhatsApp ou la galerie.</p></div>
+        <p className="text-dim text-[11.5px]">Tous droits réservés : le contenu et le code ne peuvent être reproduits ou redistribués sans autorisation écrite de l'auteur.</p>
         <p className="text-dim text-xs flex flex-wrap items-center gap-x-1.5">
-          Conçu par le Dr O. Sow · Dakar, Sénégal
+          © 2026 Hémodyssée · Conçu par le Dr O. Sow · Dakar, Sénégal
           <svg viewBox="0 0 30 20" width="18" height="12" aria-label="Drapeau du Sénégal" role="img" className="inline rounded-[2px]">
             <rect width="10" height="20" fill="#00853F" /><rect x="10" width="10" height="20" fill="#FDEF42" /><rect x="20" width="10" height="20" fill="#E31B23" />
             <polygon fill="#00853F" points="15,6.2 15.95,9.1 19,9.1 16.53,10.9 17.47,13.8 15,12 12.53,13.8 13.47,10.9 11,9.1 14.05,9.1" />

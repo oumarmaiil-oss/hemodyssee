@@ -37,6 +37,8 @@ export interface Vaisseau2D {
   setSite(s: Site): void;
   /** Étapes de l'athérosclérose (0 à 5) jouées en démonstration ; null = état du patient. */
   setEtape(n: number | null): void;
+  /** Définition imposée pour l'export (pixels par point CSS) ; null = automatique. */
+  setDefinition(pr: number | null): void;
   dispose(): void;
 }
 
@@ -46,11 +48,13 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
   conteneur.appendChild(cv);
   const g = cv.getContext('2d')!;
   let dpr = 1, cw = 1, ch = 1;
-  const ro = new ResizeObserver(() => {
+  let defImposee: number | null = null;
+  const redim = () => {
     cw = conteneur.clientWidth; ch = conteneur.clientHeight;
-    dpr = Math.min(window.devicePixelRatio || 1, opt.leger ? 1.25 : 2);
+    dpr = defImposee ?? Math.min(window.devicePixelRatio || 1, opt.leger ? 1.25 : 2);
     cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
-  });
+  };
+  const ro = new ResizeObserver(redim);
   ro.observe(conteneur);
 
   let etat: Etat | null = null;
@@ -277,6 +281,7 @@ export function creerVaisseau2D(conteneur: HTMLElement, opt: { leger?: boolean }
     setEtiquettes() { labels = true; },
     setSite(s) { site = s; },
     setEtape(n) { if (n !== etape) { etape = n; tEtape = 0; } },
+    setDefinition(pr) { defImposee = pr; redim(); },
     dispose() { ro.disconnect(); cv.remove(); },
   };
 }

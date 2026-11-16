@@ -6,16 +6,17 @@ Outil pédagogique interactif pour **comprendre et faire comprendre** le cœur, 
 
 ## Ce qu'on peut faire
 - **Explorer** : suivre une goutte de sang (veines caves → cœur droit → poumons → cœur gauche → aorte → organes) ; cliquer sur une zone pour zoomer (cœur 3D en coupe et en transparence, ou voyage du sang en 2D).
-- **Maladies** : 23 pathologies (HTA, dyslipidémie, valvulopathies, FA, BAV, infarctus, insuffisance cardiaque, AVC, maladie rénale, diabète…) avec leurs conséquences visibles.
+- **Maladies** : 21 pathologies (HTA, dyslipidémie, valvulopathies, FA, BAV, infarctus, insuffisance cardiaque, AVC, maladie rénale, diabète…) avec leurs conséquences visibles.
 - **Traitements** : 13 classes, à ajouter une par une (½, standard, double dose) pour voir l'effet propre de chacune ; traitement proposé ; effets indésirables, associations à éviter, conséquences de l'arrêt.
 - **Évolution** : sans traitement, traitement suivi, traitement arrêté, sur 5 ans.
+- **Présentations guidées** (HTA, cholestérol, fibrillation atriale), **9 cas cliniques** corrigés, **fiche récapitulative** imprimable ou en PDF, voix off.
 - **3 niveaux** : Découvrir, Comprendre, Approfondir. Bruits du cœur synthétisés. Fonctionne hors ligne et s'installe sur l'écran d'accueil.
 - **Mode labo** (bouton mallette ou `?labo` à la fin de l'adresse) : gamme commerciale, définie dans `src/content/labo.ts`.
 
 ## Organisation du code
 - `src/core` : moteur physiologique, horloge du cycle cardiaque, son (sans interface).
 - `src/content` : tout le contenu sous forme de données (zones, pathologies, classes, marques). Ajouter une maladie ou corriger un texte se fait ici.
-- `src/render` : cœur 3D (three.js, chargé à la demande) et voyage du sang 2D (canvas).
+- `src/render` : cœur 3D (three.js, chargé à la demande), voyage du sang, corps et vaisseau en 2D (canvas).
 - `src/ui` : interface React.
 
 ```bash

@@ -78,6 +78,8 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
   const etatRef = useRef(etat);
   const phaseRef = useRef<HTMLSpanElement>(null);
   const [survol, setSurvol] = useState<ZoneId | null>(null);
+  // Le nom survolé disparaît quand on change de vue ou que le pointeur quitte la scène.
+  useEffect(() => { setSurvol(null); }, [vue]);
   const [pret, setPret] = useState(false);
   const [erreur3D, setErreur3D] = useState(false);
   const [coupe, setCoupe] = useState<Coupe>('aucune');
@@ -90,6 +92,10 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
   const legendeRef = useRef(legende);
   legendeRef.current = legende;
   const [enreg, setEnreg] = useState<{ debut: number; son: boolean } | null>(null);
+  // Fichier prêt : sur téléphone (et dans les navigateurs intégrés), le téléchargement direct échoue souvent ;
+  // on propose alors « Partager » (WhatsApp, Photos…) et « Enregistrer », deux gestes de l'utilisateur.
+  const [fichier, setFichier] = useState<{ blob: Blob; nom: string; video: boolean } | null>(null);
+  const tactile = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
   const [duree, setDuree] = useState(0);
   const recorder = useRef<MediaRecorder | null>(null);
   const onZoneRef = useRef(onZone);
@@ -219,7 +225,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
     const r = rendu.current;
     if (!pret || !r) return;
     if ('setEtape' in r) r.setEtape(ath && ath.i < ETAPES_ATHERO.length ? ath.i : null);
-    if ('embolie' in r) { const on = !!ath && ath.i === ETAPES_ATHERO.length; r.embolie(on); if (on) r.focus(null); }
+    if ('embolie' in r) { const on = !!ath && ath.i === ETAPES_ATHERO.length; r.embolie(on); if (on) r.focus('carotides'); }
   }, [ath, pret, vue]);
   const lecture: Lecture | null = lectureApp ?? (ath ? {
     titre: 'Plaque d\'athérome',
@@ -270,19 +276,34 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
     g.fillStyle = '#ffffff'; g.fillText('Hémodyssée · Dr O. Sow', w - u * 0.8, h - u * 0.7); g.textAlign = 'left'; g.globalAlpha = 1;
   };
   const nomFichier = (ext: string) => { const d = new Date(); const p = (n: number) => String(n).padStart(2, '0'); return `hemodyssee-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.${ext}`; };
-  const telecharger = (blob: Blob, nom: string) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nom; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
+  const telecharger = (blob: Blob, nom: string) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nom; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); };
+  const peutPartager = (f: File) => { try { return !!navigator.canShare?.({ files: [f] }); } catch { return false; } };
+  const partager = async () => {
+    if (!fichier) return;
+    const f = new File([fichier.blob], fichier.nom, { type: fichier.blob.type });
+    try { await navigator.share({ files: [f], title: 'Hémodyssée' }); } catch { /* partage annulé */ }
+  };
 
+  // Export en haute définition : la scène est redessinée plus finement le temps de la capture.
+  const definir = (on: boolean) => {
+    const r = rendu.current as { setDefinition?: (pr: number | null) => void } | null;
+    const w = hote.current?.clientWidth || 800;
+    r?.setDefinition?.(on ? Math.min(2.5, Math.max(window.devicePixelRatio || 1, 1600 / w)) : null);
+  };
   const photo = () => {
+    definir(true);
     captureRef.current = (src) => {
       captureRef.current = null;
+      setTimeout(() => definir(false), 0);
       const dst = document.createElement('canvas'); dst.width = src.width; dst.height = src.height;
       composer(src, dst);
-      dst.toBlob((b) => b && telecharger(b, nomFichier('png')), 'image/png');
+      dst.toBlob((b) => { if (!b) return; if (tactile) setFichier({ blob: b, nom: nomFichier('png'), video: false }); else telecharger(b, nomFichier('png')); }, 'image/png');
     };
   };
 
   const video = () => {
     if (recorder.current) { recorder.current.stop(); return; }
+    definir(true);
     const src = hote.current?.querySelector('canvas'); if (!src) return;
     const k = Math.min(1, 1920 / src.width);
     const dst = document.createElement('canvas'); dst.width = Math.round(src.width * k / 2) * 2; dst.height = Math.round(src.height * k / 2) * 2;
@@ -290,15 +311,18 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
     const audio = son.flux();
     audio?.getAudioTracks().forEach((t) => flux.addTrack(t));
     // MP4 H.264 en priorité (lu partout, WhatsApp compris) ; sinon WebM ; « video/mp4 » seul en dernier (Safari).
-    const types = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1,opus', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+    const types = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs=avc1,opus', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
     const type = types.find((t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t));
     if (!type) { alert('L\'enregistrement vidéo n\'est pas pris en charge par ce navigateur.'); return; }
     const rec = new MediaRecorder(flux, { mimeType: type, videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 192_000 });
     const morceaux: Blob[] = [];
     rec.ondataavailable = (e) => { if (e.data.size) morceaux.push(e.data); };
     rec.onstop = () => {
-      captureRef.current = null; recorder.current = null; setEnreg(null);
-      telecharger(new Blob(morceaux, { type: type.split(';')[0] }), nomFichier(type.includes('mp4') ? 'mp4' : 'webm'));
+      captureRef.current = null; recorder.current = null; setEnreg(null); definir(false);
+      const blob = new Blob(morceaux, { type: type.split(';')[0] }), nom = nomFichier(type.includes('mp4') ? 'mp4' : 'webm');
+      if (!blob.size) { alert('La vidéo est vide : la scène n\'a pas pu être filmée. Réessayez en laissant la scène visible.'); return; }
+      setFichier({ blob, nom, video: true });
+      if (!tactile) telecharger(blob, nom);
     };
     captureRef.current = (c) => composer(c, dst);
     rec.start(1000);
@@ -320,7 +344,7 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
   return (
     <div className="relative w-full h-full overflow-hidden rounded-2xl border border-line bg-[radial-gradient(ellipse_at_50%_35%,#1b1630_0%,#0b0f1c_55%,#070a12_100%)]" data-testid="scene">
       {/* Sur téléphone, la scène s'arrête au-dessus du bandeau de lecture : rien n'est caché dessous. */}
-      <div ref={hote} className={`absolute inset-x-0 top-0 ${lecture ? 'bottom-[92px] lg:bottom-0' : 'bottom-0'}`} />
+      <div ref={hote} onPointerLeave={() => setSurvol(null)} className={`absolute inset-x-0 top-0 ${lecture ? 'bottom-[92px] lg:bottom-0' : 'bottom-0'}`} />
       {!pret && !erreur3D && <div className="absolute inset-0 grid place-items-center text-muted text-sm">Préparation de la scène…</div>}
       {erreur3D && <div className="absolute inset-0 grid place-items-center text-center p-6 text-muted text-sm">La 3D n'est pas disponible sur cet appareil.<br />Utilisez la vue 2D.</div>}
 
@@ -329,6 +353,19 @@ export function Stage({ vue, etat, niveau, zone, onZone, son, ralenti, legende, 
         <div className="absolute bottom-2.5 left-2 lg:bottom-auto lg:top-14 flex items-center gap-1.5 rounded-full bg-ink/75 border border-line px-2 py-0.5 text-[10.5px] lg:text-xs text-muted pointer-events-none max-w-[38%] lg:max-w-[60%] truncate">
           <span className="w-2 h-2 rounded-full bg-sang animate-pulse" />
           <span ref={phaseRef}>—</span>
+        </div>
+      )}
+      {fichier && (
+        <div className="absolute z-30 left-1/2 -translate-x-1/2 bottom-3 w-[min(94%,420px)] rounded-2xl border border-ok/40 bg-ink/95 p-3 shadow-xl fade-in">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[13px] font-semibold">{fichier.video ? 'Vidéo prête' : 'Image prête'} <span className="text-dim font-normal">· {(fichier.blob.size / 1e6).toFixed(1)} Mo{fichier.nom.endsWith('webm') ? ' · WebM' : ''}</span></div>
+            <button onClick={() => setFichier(null)} className="btn-icone w-7 h-7" aria-label="Fermer"><X size={13} /></button>
+          </div>
+          <div className="flex gap-2 mt-2">
+            {peutPartager(new File([fichier.blob], fichier.nom, { type: fichier.blob.type })) && <button onClick={partager} className="flex-1 rounded-lg bg-ok text-ink font-bold text-[13px] py-2">Partager</button>}
+            <button onClick={() => telecharger(fichier.blob, fichier.nom)} className="flex-1 rounded-lg bg-card2 border border-line font-semibold text-[13px] py-2">{tactile ? 'Enregistrer' : 'Télécharger à nouveau'}</button>
+          </div>
+          {fichier.nom.endsWith('webm') && <p className="text-[11px] text-dim mt-1.5">Ce navigateur enregistre en WebM : pour WhatsApp, préférez Chrome récent ou Safari (MP4).</p>}
         </div>
       )}
       {enreg && (

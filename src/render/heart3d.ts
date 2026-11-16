@@ -32,6 +32,8 @@ export interface Coeur3D {
   selection(z: ZoneId | null): void;
   setEtiquettes(on: boolean, noms: Partial<Record<ZoneId, string>>): void;
   vueInitiale(): void;
+  /** Définition imposée pour l'export (pixels par point CSS) ; null = automatique. */
+  setDefinition(pr: number | null): void;
   dispose(): void;
 }
 
@@ -570,9 +572,10 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
   let temps = 0;
   // Résolution adaptative : si l'appareil peine, on baisse la définition par paliers.
   let prActuel = renderer.getPixelRatio(), cumul = 0, nbImages = 0, dernier = performance.now();
+  let defImposee: number | null = null;
   function gouverneur() {
     const now = performance.now(); cumul += now - dernier; dernier = now; nbImages++;
-    if (nbImages < 90) return;
+    if (nbImages < 90 || defImposee) return;
     const moy = cumul / nbImages; cumul = 0; nbImages = 0;
     if (moy > 30 && prActuel > 1) {
       prActuel = Math.max(1, prActuel - 0.25);
@@ -765,12 +768,25 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
     // Étiquettes.
     if (etiquettes.length) {
       const w = conteneur.clientWidth, h = conteneur.clientHeight;
-      for (const { z, el } of etiquettes) {
-        const a = ANCRES[z]; if (!a) continue;
+      // Noms des zones : on décale verticalement ceux qui se chevaucheraient.
+      const places: { x: number; y: number; w: number; h: number }[] = [];
+      const pos = etiquettes.map(({ z, el }) => {
+        const a = ANCRES[z]; if (!a) return null;
         tmp.copy(a).project(camera);
         const vis = tmp.z < 1 && Math.abs(tmp.x) < 1.05 && Math.abs(tmp.y) < 1.05;
         el.style.display = vis ? 'block' : 'none';
-        el.style.transform = `translate(${((tmp.x + 1) / 2) * w}px, ${((1 - tmp.y) / 2) * h}px) translate(-50%, -50%)`;
+        if (!vis) return null;
+        const lw = +(el.dataset.w ||= String(el.offsetWidth || 80)), lh = +(el.dataset.h ||= String(el.offsetHeight || 18));
+        return { el, x: ((tmp.x + 1) / 2) * w, y: ((1 - tmp.y) / 2) * h, w: lw, h: lh };
+      }).filter((p): p is NonNullable<typeof p> => !!p).sort((p, q) => p.y - q.y);
+      for (const p of pos) {
+        let y = p.y;
+        for (const d of [0, 1, -1, 2, -2, 3]) {
+          const yy = p.y + d * (p.h + 2);
+          if (!places.some((b) => Math.abs(b.x - p.x) < (b.w + p.w) / 2 + 2 && Math.abs(b.y - yy) < (b.h + p.h) / 2 + 1)) { y = yy; break; }
+        }
+        places.push({ x: p.x, y, w: p.w, h: p.h });
+        p.el.style.transform = `translate(${p.x}px, ${y}px) translate(-50%, -50%)`;
       }
     }
 
@@ -855,6 +871,11 @@ export function creerCoeur3D(conteneur: HTMLElement, opt: OptionsCoeur3D = {}): 
       }
     },
     vueInitiale() { allerVers(CAM0.clone(), CIBLE0.clone()); },
+    setDefinition(pr) {
+      defImposee = pr;
+      renderer.setPixelRatio(pr ?? prActuel);
+      renderer.setSize(conteneur.clientWidth, conteneur.clientHeight, false);
+    },
     dispose() {
       ro.disconnect();
       renderer.domElement.removeEventListener('pointermove', onMove);

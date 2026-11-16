@@ -81,6 +81,8 @@ export interface Circuit2D {
   focus(z: ZoneId | null): void;
   selection(z: ZoneId | null): void;
   setEtiquettes(on: boolean, noms: Partial<Record<ZoneId, string>>): void;
+  /** Définition imposée pour l'export (pixels par point CSS) ; null = automatique. */
+  setDefinition(pr: number | null): void;
   dispose(): void;
 }
 
@@ -92,11 +94,13 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
   conteneur.appendChild(cv);
   const g = cv.getContext('2d')!;
   let dpr = 1, cw = 1, ch = 1;
-  const ro = new ResizeObserver(() => {
+  let defImposee: number | null = null;
+  const redim = () => {
     cw = conteneur.clientWidth; ch = conteneur.clientHeight;
-    dpr = Math.min(window.devicePixelRatio || 1, opt.leger ? 1.25 : 2);
+    dpr = defImposee ?? Math.min(window.devicePixelRatio || 1, opt.leger ? 1.25 : 2);
     cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
-  });
+  };
+  const ro = new ResizeObserver(redim);
   ro.observe(conteneur);
 
   const circuits = construireCircuits();
@@ -459,6 +463,7 @@ export function creerCircuit2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneI
     },
     selection(z) { choisi = z; },
     setEtiquettes(on, n) { labels = on; noms = n; },
+    setDefinition(pr) { defImposee = pr; redim(); },
     dispose() { ro.disconnect(); cv.removeEventListener('pointermove', onMove); cv.removeEventListener('pointerup', onClick); cv.remove(); },
   };
 }

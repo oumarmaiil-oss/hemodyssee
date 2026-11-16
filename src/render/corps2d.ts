@@ -64,6 +64,8 @@ export interface Corps2D {
   setEtiquettes(on: boolean, noms: Partial<Record<ZoneId, string>>): void;
   /** Démonstration : un fragment de plaque carotidienne part vers le cerveau (AVC). */
   embolie(on: boolean): void;
+  /** Définition imposée pour l'export (pixels par point CSS) ; null = automatique. */
+  setDefinition(pr: number | null): void;
   dispose(): void;
 }
 
@@ -73,11 +75,13 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
   conteneur.appendChild(cv);
   const g = cv.getContext('2d')!;
   let dpr = 1, cw = 1, ch = 1;
-  const ro = new ResizeObserver(() => {
+  let defImposee: number | null = null;
+  const redim = () => {
     cw = conteneur.clientWidth; ch = conteneur.clientHeight;
-    dpr = Math.min(window.devicePixelRatio || 1, opt.leger ? 1.25 : 2);
+    dpr = defImposee ?? Math.min(window.devicePixelRatio || 1, opt.leger ? 1.25 : 2);
     cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
-  });
+  };
+  const ro = new ResizeObserver(redim);
   ro.observe(conteneur);
 
   const tire = (liste: Chemin[]) => { const r = Math.random(); let a = 0; for (const c of liste) { a += c.poids; if (r <= a) return c; } return liste[liste.length - 1]; };
@@ -293,6 +297,7 @@ export function creerCorps2D(conteneur: HTMLElement, opt: { onPick?: (z: ZoneId 
     selection(z) { choisi = z; },
     setEtiquettes(on) { labels = on; },
     embolie(on) { demo = on; if (on) { embole = null; prochain = 0.4; } },
+    setDefinition(pr) { defImposee = pr; redim(); },
     dispose() { ro.disconnect(); cv.removeEventListener('pointermove', onMove); cv.removeEventListener('pointerup', onUp); cv.remove(); },
   };
 }
